@@ -14,7 +14,9 @@ import { toast } from "sonner";
 import {
   decodeWorkflowEvents,
   convertUINodeToDBNode,
+  convertUIEdgeToDBEdge,
 } from "lib/ai/workflow/shared.workflow";
+
 
 import { Alert, AlertDescription, AlertTitle } from "ui/alert";
 import {
@@ -231,8 +233,11 @@ ${workflow!.description ? `tool-description: ${workflow!.description}` : ""}`,
             nodes: (getNodes() as UINode[]).map((n) =>
               convertUINodeToDBNode(workflow!.id, n),
             ),
-            edges: getEdges(),
+            edges: (getEdges() as any[]).map((e) =>
+              convertUIEdgeToDBEdge(workflow!.id, e),
+            ),
           }),
+
           signal: abortController.signal,
         });
 

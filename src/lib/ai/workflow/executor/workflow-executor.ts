@@ -239,9 +239,10 @@ function buildNeedTable(edges: DBEdge[]): Record<string, number> {
 
   // Group edges by target and track unique branch labels
   edges.forEach((e) => {
-    const bid = e.uiConfig.label as string;
+    const bid = ((e.uiConfig?.label ?? (e as any).label ?? "") as string);
     (map.get(e.target) ?? map.set(e.target, new Set()).get(e.target))!.add(bid);
   });
+
 
   // Only nodes with multiple incoming branches need synchronization
   const tbl: Record<string, number> = {};
