@@ -18,6 +18,8 @@ import {
   buildUserSystemPrompt,
   buildToolCallUnsupportedModelSystemPrompt,
 } from "lib/ai/prompts";
+import { cookies } from "next/headers";
+import { COOKIE_KEY_LOCALE } from "lib/const";
 import {
   chatApiSchemaRequestBodySchema,
   ChatMention,
@@ -262,8 +264,11 @@ export async function POST(request: Request) {
           .map((v) => filterMcpServerCustomizations(MCP_TOOLS!, v))
           .orElse({});
 
+        const cookieStore = await cookies();
+        const currentLocale = cookieStore.get(COOKIE_KEY_LOCALE)?.value || "en";
+
         const systemPrompt = mergeSystemPrompt(
-          buildUserSystemPrompt(session.user, userPreferences, agent),
+          buildUserSystemPrompt(session.user, userPreferences, agent, currentLocale),
           buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations),
           !supportToolCall && buildToolCallUnsupportedModelSystemPrompt,
         );

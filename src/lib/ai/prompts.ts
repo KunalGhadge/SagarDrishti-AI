@@ -48,10 +48,24 @@ ${toolsList}
 CRITICAL: Generate all output content in the same language as the user's request. Be specific and comprehensive. Proactively seek clarification if requirements are ambiguous. Your output should enable the new agent to operate autonomously and reliably within its domain.`.trim();
 };
 
+export const SUPPORTED_LANGUAGE_NAMES: Record<string, string> = {
+  mr: "Marathi (मराठी)",
+  hi: "Hindi (हिन्दी)",
+  gu: "Gujarati (ગુજરાતી)",
+  ta: "Tamil (தமிழ்)",
+  te: "Telugu (తెలుగు)",
+  bn: "Bengali (বাংলা)",
+  ml: "Malayalam (മലയാളം)",
+  kn: "Kannada (ಕನ್ನಡ)",
+  or: "Odia (ଓଡ଼ିଆ)",
+  en: "English",
+};
+
 export const buildUserSystemPrompt = (
   user?: User,
   userPreferences?: UserPreferences,
   agent?: Agent,
+  locale?: string,
 ) => {
   const assistantName =
     agent?.name || userPreferences?.botName || "SagarDrishti AI";
@@ -65,6 +79,19 @@ export const buildUserSystemPrompt = (
   }
 
   prompt += `. The current date and time is ${currentTime}.`;
+
+  // Multilingual Response Enforcement
+  if (locale && locale !== "en") {
+    const langName = SUPPORTED_LANGUAGE_NAMES[locale] || locale;
+    prompt += `
+
+<language_enforcement>
+CRITICAL MULTILINGUAL DIRECTIVE:
+The user's active interface language is ${langName}.
+REGARDLESS OF THE LANGUAGE OF THE USER'S INPUT (even if the user queries in English, Hinglish, or another dialect), you MUST generate your entire conversational response, tactical explanations, evidence analysis, safety advisories, and step-by-step outputs natively in ${langName}.
+Keep numbers, coordinates, and standard status badges (e.g. CODE RED, CODE YELLOW, CODE GREEN, MAYDAY, SOS, knots, km/h, °C) easily recognizable, but conduct all textual dialogue in ${langName}.
+</language_enforcement>`;
+  }
 
   // Agent-specific instructions as primary core
   if (agent?.instructions?.systemPrompt) {
