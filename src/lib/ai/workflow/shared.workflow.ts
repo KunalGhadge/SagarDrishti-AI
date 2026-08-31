@@ -131,7 +131,7 @@ export function convertDBNodeToUINode(node: DBNode): UINode {
       description: node.description || "",
       kind: node.kind as any,
     },
-    type: node.uiConfig.type || "default",
+    type: node.uiConfig?.type || "default",
   };
   return uiNode;
 }

@@ -238,8 +238,18 @@ ${workflow!.description ? `tool-description: ${workflow!.description}` : ""}`,
 
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          let errorText = "";
+          try {
+            const errJson = await response.json();
+            errorText = errJson.error || errJson.message || JSON.stringify(errJson);
+          } catch {
+            errorText = await response.text();
+          }
+          console.error("Workflow execute response error:", errorText);
+          toast.error(errorText || `Execution failed with status ${response.status}`);
+          throw new Error(errorText || `HTTP error! status: ${response.status}`);
         }
+
 
         const reader = response.body?.getReader();
         if (!reader) {

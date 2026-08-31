@@ -6,10 +6,14 @@ import logger from "logger";
 import { colorize } from "consola/utils";
 import { errorToString, toAny } from "lib/utils";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 300;
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+
   try {
     const { id } = await params;
     let query: any = {};
