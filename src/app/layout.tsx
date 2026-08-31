@@ -8,7 +8,7 @@ import {
 } from "@/components/layouts/theme-provider";
 import { Toaster } from "ui/sonner";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale } from "next-intl/server";
+import { getLocale, getMessages } from "next-intl/server";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -31,6 +31,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await getLocale();
+  const messages = await getMessages();
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -45,7 +46,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <ThemeStyleProvider>
-            <NextIntlClientProvider>
+            <NextIntlClientProvider locale={locale} messages={messages}>
               <div id="root">
                 {children}
                 <Toaster richColors />
