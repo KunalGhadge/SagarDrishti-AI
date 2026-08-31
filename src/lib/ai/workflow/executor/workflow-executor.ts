@@ -69,9 +69,13 @@ export const createWorkflowExecutor = (workflow: {
   edges: DBEdge[];
   logger?: ConsolaInstance;
 }) => {
+  const executableNodes = (workflow.nodes || []).filter(
+    (n) => n.kind !== NodeKind.Note,
+  );
+
   // Create runtime state store for the workflow
   const store = createGraphStore({
-    nodes: workflow.nodes,
+    nodes: executableNodes,
     edges: workflow.edges,
   });
 
@@ -83,7 +87,7 @@ export const createWorkflowExecutor = (workflow: {
 
   // Create mapping for node ID to name for logging
   const nodeNameByNodeId = new Map<string, string>(
-    workflow.nodes.map((node) => [node.id, node.name]),
+    executableNodes.map((node) => [node.id, node.name]),
   );
 
   // Create the execution graph using ts-edge library
@@ -93,7 +97,8 @@ export const createWorkflowExecutor = (workflow: {
   >;
 
   // Add branch labels for condition node edges
-  addEdgeBranchLabel(workflow.nodes, workflow.edges);
+  addEdgeBranchLabel(executableNodes, workflow.edges);
+
 
   /**
    * Special SKIP node used to handle excess branches from condition nodes.
@@ -113,9 +118,10 @@ export const createWorkflowExecutor = (workflow: {
 
   graph.addNode(skipNode);
 
-  // Add all workflow nodes to the execution graph
-  workflow.nodes.forEach((node) => {
+  // Add all executable workflow nodes to the execution graph
+  executableNodes.forEach((node) => {
     graph.addNode({
+
       name: node.id,
       metadata: {
         kind: node.kind,
