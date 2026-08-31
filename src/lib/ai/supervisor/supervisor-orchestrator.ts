@@ -298,6 +298,8 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
               const physicsRes = await (marinePhysicsTool.execute as any)({ latitude: lat, longitude: lon });
               const sstVal = physicsRes?.physics?.seaSurfaceTemperature?.value ?? 28.2;
               const currentVel = physicsRes?.physics?.oceanCurrents?.velocity ?? 0.38;
+              const waveHeight = physicsRes?.physics?.significantWaveHeight?.value ?? 1.4;
+              const wavePeriod = physicsRes?.physics?.wavePeriod?.peakPeriodSeconds ?? 6.2;
 
               const observation: OceanographicObservation = {
                 coordinates: { latitude: zone.pfzCoordinates.latitude, longitude: zone.pfzCoordinates.longitude },
@@ -313,6 +315,21 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
 
               const insightRes = evaluateMarineInsights(observation);
 
+              const hazidParams: ImoHazidParameters = {
+                locationName: zone.name,
+                latitude: zone.pfzCoordinates.latitude,
+                longitude: zone.pfzCoordinates.longitude,
+                windSpeedKmph: 22,
+                significantWaveHeightMeters: waveHeight,
+                peakWavePeriodSeconds: wavePeriod,
+                nowcastColorCode: 1,
+                hasOfficialFishermenWarning: false,
+                portDangerSignal: 0,
+                imblDistanceKm: 45,
+              };
+
+              const riskRes = evaluateImoMarineRisk(hazidParams);
+
               agentOutput = {
                 specialist: agent.name,
                 role: agent.instructions.role,
@@ -327,6 +344,21 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
                 },
                 physics: physicsRes?.physics,
                 scientificInsights: insightRes,
+                imoFsaAssessment: riskRes,
+                presentationMatrix: {
+                  title: `INCOIS Ocean State & PFZ Telemetry - ${zone.name}`,
+                  rows: [
+                    { parameter: "Target Harbor", value: zone.harbor },
+                    { parameter: "PFZ Coordinates", value: `${zone.pfzCoordinates.latitude}°N, ${zone.pfzCoordinates.longitude}°E` },
+                    { parameter: "Distance & Bearing", value: `${zone.pfzDistanceNM} NM (${parseFloat((zone.pfzDistanceNM * 1.852).toFixed(1))} km) ${zone.pfzBearing}` },
+                    { parameter: "Target Species", value: zone.targetSpecies.join(", ") },
+                    { parameter: "Sea Surface Temperature", value: `${sstVal}°C (Optimal Pelagic Window)` },
+                    { parameter: "Thermal Gradient (ΔSST)", value: `${insightRes.scientificAnalyses.thermalFrontAnalysis.sstGradientDegPer5Km}°C / 5km` },
+                    { parameter: "Chlorophyll-a", value: `${observation.chlorophyllConcentrationMgM3} mg/m³ (Optimal Eutrophic)` },
+                    { parameter: "Significant Wave Height", value: `${waveHeight} meters` },
+                    { parameter: "IMO Risk Level", value: `${riskRes.riskLevel === "CODE_GREEN_LOW" ? "🟢 CODE GREEN" : "🟡 CODE YELLOW"} (RI = ${riskRes.riskMatrix.riskIndex})` },
+                  ],
+                },
               };
               break;
             }

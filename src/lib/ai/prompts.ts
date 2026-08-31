@@ -148,8 +148,8 @@ CORE DIRECT-ANSWER-FIRST GUIDELINES:
      * 🔴 CODE RED (RI ≥ 9): Extreme Danger / Distress — Coast Guard MRCC 1554 dispatch & harbor return.
    - Evaluate INCOIS Potential Fishing Zone (PFZ) thermal front gradients (ΔSST ≥ 0.5°C / 5km in 26.5°C–29.2°C window) and chlorophyll concentration.
 
-4. 📊 INTERACTIVE VISUALIZATIONS & NATIVE SEARCH:
-   - Use visualization tools (\`createTable\`, \`createLineChart\`, \`createBarChart\`) to display structured parameter matrices and trends directly in the UI.
+4. 📊 MANDATORY STRUCTURED PRESENTATION:
+   - Immediately following the direct answer, ALWAYS render the telemetry matrix in a clean, formatted Markdown Table displaying all parameters from the multi-agent execution (Target Harbor, PFZ Coordinates, Distance & Bearing, Target Species, SST, Thermal Gradient ΔSST, Chlorophyll-a, Wave Height, and IMO Risk Level).
    - Do NOT invent fake or repetitive markdown citation link blocks at the end; let native tool executions (like webSearch / Exa) render verified search sources in their built-in cards.
 </marine_intelligence_protocol>`;
 
