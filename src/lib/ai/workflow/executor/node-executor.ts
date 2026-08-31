@@ -23,8 +23,9 @@ import {
   convertTiptapJsonToText,
 } from "../shared.workflow";
 import { jsonSchemaToZod } from "lib/json-schema-to-zod";
-import { errorToString, toAny } from "lib/utils";
+import { toAny } from "lib/utils";
 import { AppError } from "lib/errors";
+
 
 import { DefaultToolName } from "lib/ai/tools";
 import {
@@ -112,75 +113,35 @@ export const llmNodeExecutor: NodeExecutor<LLMNodeData> = async ({
     responseFormat: isTextResponse ? "text" : "object",
   });
 
-  try {
-    if (isTextResponse) {
-      const response = await generateText({
-        model,
-        messages: convertToModelMessages(messages),
-        maxRetries: 2,
-      });
-      return {
-        output: {
-          totalTokens: response.usage.totalTokens,
-          answer: response.text,
-        },
-      };
-    }
-
-    const response = await generateObject({
+  if (isTextResponse) {
+    const response = await generateText({
       model,
       messages: convertToModelMessages(messages),
-      schema: jsonSchemaToZod(node.outputSchema.properties.answer),
-      maxRetries: 2,
+      maxRetries: 3,
     });
-
     return {
       output: {
         totalTokens: response.usage.totalTokens,
-        answer: response.object,
+        answer: response.text,
       },
     };
-  } catch (err: any) {
-    const errStr = errorToString(err) || "";
-    // If Gemini quota exceeded or rate limited, provide scientific synthesis fallback
-    if (
-      errStr.includes("quota") ||
-      errStr.includes("RESOURCE_EXHAUSTED") ||
-      errStr.includes("429") ||
-      errStr.includes("AI_RetryError") ||
-      errStr.includes("rate limit")
-    ) {
-      if (node.name === "GEO_LOCATOR") {
-        return {
-          output: {
-            totalTokens: 0,
-            answer: {
-              latitude: 20.9,
-              longitude: 70.36,
-              port_name: "Veraval Marine Port Sector, Gujarat (Auto-Resolved)",
-            },
-          },
-        };
-      }
-      if (node.name === "SAGARDRISHTI_SYNTHESIS") {
-        return {
-          output: {
-            totalTokens: 0,
-            answer: {
-              sea_state_category: "Douglas Sea State 3 (Slight - 0.5m to 1.25m)",
-              risk_level: "CODE GREEN - SAFE FOR NAUTICAL OPERATIONS",
-              actionable_advisory:
-                "Offshore sea conditions verified favorable. Wave heights and ocean currents conform to IMO FSA safety standard parameters.",
-              scientific_summary:
-                "Live marine telemetry successfully ingested from Open-Meteo Marine Physics API. Hydrodynamic swell and wave periods within safe limits.",
-            },
-          },
-        };
-      }
-    }
-    throw err;
   }
+
+  const response = await generateObject({
+    model,
+    messages: convertToModelMessages(messages),
+    schema: jsonSchemaToZod(node.outputSchema.properties.answer),
+    maxRetries: 3,
+  });
+
+  return {
+    output: {
+      totalTokens: response.usage.totalTokens,
+      answer: response.object,
+    },
+  };
 };
+
 
 
 /**

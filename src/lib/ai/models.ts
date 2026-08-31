@@ -2,7 +2,7 @@ import "server-only";
 
 import { createOllama } from "ollama-ai-provider-v2";
 import { openai } from "@ai-sdk/openai";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { anthropic } from "@ai-sdk/anthropic";
 import { xai } from "@ai-sdk/xai";
 import { LanguageModelV2, openrouter } from "@openrouter/ai-sdk-provider";
@@ -21,9 +21,15 @@ import {
   XAI_FILE_MIME_TYPES,
 } from "./file-support";
 
+const google = createGoogleGenerativeAI({
+  apiKey:
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY,
+});
+
 const ollama = createOllama({
   baseURL: process.env.OLLAMA_BASE_URL || "http://localhost:11434/api",
 });
+
 const groq = createGroq({
   baseURL: process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1",
   apiKey: process.env.GROQ_API_KEY,
@@ -225,8 +231,10 @@ function checkProviderAPIKey(provider: keyof typeof staticModels) {
       key = process.env.OPENAI_API_KEY;
       break;
     case "google":
-      key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      key =
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
       break;
+
     case "anthropic":
       key = process.env.ANTHROPIC_API_KEY;
       break;
