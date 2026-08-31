@@ -45,6 +45,211 @@ export const agentDelegationSchema: JSONSchema7 = {
   required: ["query"],
 };
 
+export interface CoastalZoneInfo {
+  name: string;
+  state: string;
+  harbor: string;
+  latitude: number;
+  longitude: number;
+  pfzCoordinates: { latitude: number; longitude: number };
+  pfzDistanceNM: number;
+  pfzBearing: string;
+  targetSpecies: string[];
+}
+
+export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
+  mumbai: {
+    name: "Mumbai Coastal Waters",
+    state: "Maharashtra",
+    harbor: "Sassoon Dock, Mumbai",
+    latitude: 18.9220,
+    longitude: 72.8347,
+    pfzCoordinates: { latitude: 18.7420, longitude: 72.3150 },
+    pfzDistanceNM: 32,
+    pfzBearing: "245° (WSW)",
+    targetSpecies: ["Indian Mackerel", "Skipjack Tuna", "Ribbonfish", "Horse Mackerel"],
+  },
+  ratnagiri: {
+    name: "Ratnagiri Offshore",
+    state: "Maharashtra",
+    harbor: "Mirkarwada Fishing Harbour, Ratnagiri",
+    latitude: 16.9902,
+    longitude: 73.3120,
+    pfzCoordinates: { latitude: 16.8500, longitude: 72.9500 },
+    pfzDistanceNM: 22,
+    pfzBearing: "230° (SW)",
+    targetSpecies: ["Oil Sardines", "Mackerel", "Kingfish", "Squid"],
+  },
+  sindhudurg: {
+    name: "Sindhudurg & Malvan Waters",
+    state: "Maharashtra",
+    harbor: "Malvan Jetty, Sindhudurg",
+    latitude: 16.0500,
+    longitude: 73.4600,
+    pfzCoordinates: { latitude: 15.9200, longitude: 73.1200 },
+    pfzDistanceNM: 21,
+    pfzBearing: "240° (WSW)",
+    targetSpecies: ["Mackerel", "Pomfret", "Surmai", "Prawns"],
+  },
+  veraval: {
+    name: "Veraval & Saurashtra Coast",
+    state: "Gujarat",
+    harbor: "Veraval Fisheries Harbour, Gujarat",
+    latitude: 20.9020,
+    longitude: 70.3700,
+    pfzCoordinates: { latitude: 20.7200, longitude: 69.8800 },
+    pfzDistanceNM: 28,
+    pfzBearing: "240° (WSW)",
+    targetSpecies: ["Silver Pomfret", "Ribbonfish", "Cuttlefish", "Croakers"],
+  },
+  porbandar: {
+    name: "Porbandar Coastal Waters",
+    state: "Gujarat",
+    harbor: "Porbandar All-Weather Port",
+    latitude: 21.6417,
+    longitude: 69.6293,
+    pfzCoordinates: { latitude: 21.4500, longitude: 69.1800 },
+    pfzDistanceNM: 27,
+    pfzBearing: "235° (SW)",
+    targetSpecies: ["Hilsa", "Tuna", "Catfish", "Squid"],
+  },
+  goa: {
+    name: "Goa Coastal Waters",
+    state: "Goa",
+    harbor: "Mormugao Port & Betul Jetty",
+    latitude: 15.4000,
+    longitude: 73.8000,
+    pfzCoordinates: { latitude: 15.2200, longitude: 73.3800 },
+    pfzDistanceNM: 26,
+    pfzBearing: "240° (WSW)",
+    targetSpecies: ["Mackerel", "Kingfish (Surmai)", "Sardines", "Seerfish"],
+  },
+  kochi: {
+    name: "Kochi Offshore Waters",
+    state: "Kerala",
+    harbor: "Cochin Fisheries Harbour, Thoppumpady",
+    latitude: 9.9312,
+    longitude: 76.2673,
+    pfzCoordinates: { latitude: 9.7500, longitude: 75.8200 },
+    pfzDistanceNM: 29,
+    pfzBearing: "245° (WSW)",
+    targetSpecies: ["Yellowfin Tuna", "Indian Oil Sardine", "Mackerel", "Squid"],
+  },
+  chennai: {
+    name: "Chennai Coastal Waters",
+    state: "Tamil Nadu",
+    harbor: "Kasimedu Fishing Harbour, Chennai",
+    latitude: 13.0827,
+    longitude: 80.2707,
+    pfzCoordinates: { latitude: 13.1500, longitude: 80.6800 },
+    pfzDistanceNM: 25,
+    pfzBearing: "075° (ENE)",
+    targetSpecies: ["Barracuda", "Seerfish", "Skipjack Tuna", "Trevally"],
+  },
+  rameswaram: {
+    name: "Palk Bay & Gulf of Mannar",
+    state: "Tamil Nadu",
+    harbor: "Rameswaram Fishing Jetty",
+    latitude: 9.2876,
+    longitude: 79.3129,
+    pfzCoordinates: { latitude: 9.1500, longitude: 79.6200 },
+    pfzDistanceNM: 19,
+    pfzBearing: "120° (ESE)",
+    targetSpecies: ["Blue Crab", "Squid", "Emperor", "Snapper"],
+  },
+  visakhapatnam: {
+    name: "Visakhapatnam Waters",
+    state: "Andhra Pradesh",
+    harbor: "Visakhapatnam Fishing Harbour",
+    latitude: 17.6868,
+    longitude: 83.2185,
+    pfzCoordinates: { latitude: 17.5200, longitude: 83.6500 },
+    pfzDistanceNM: 27,
+    pfzBearing: "115° (ESE)",
+    targetSpecies: ["Ribbonfish", "Tuna", "Mackerel", "Brown Shrimp"],
+  },
+  paradip: {
+    name: "Paradip Coastal Waters",
+    state: "Odisha",
+    harbor: "Paradip Fishing Harbour, Odisha",
+    latitude: 20.3160,
+    longitude: 86.6110,
+    pfzCoordinates: { latitude: 20.1200, longitude: 87.0500 },
+    pfzDistanceNM: 26,
+    pfzBearing: "120° (ESE)",
+    targetSpecies: ["Hilsa", "Pomfret", "Sea Bass (Bhetki)", "Tiger Prawns"],
+  },
+  digha: {
+    name: "Digha & Northern Bay of Bengal",
+    state: "West Bengal",
+    harbor: "Digha Mohana Fishing Port",
+    latitude: 21.6266,
+    longitude: 87.5074,
+    pfzCoordinates: { latitude: 21.3200, longitude: 88.0200 },
+    pfzDistanceNM: 34,
+    pfzBearing: "125° (SE)",
+    targetSpecies: ["Hilsa (Ilish)", "Pomfret", "Bombay Duck", "Prawns"],
+  },
+};
+
+export function resolveIndianCoastalZone(
+  query: string,
+  explicitLocation?: string,
+  explicitCoordinates?: { latitude: number; longitude: number }
+): CoastalZoneInfo {
+  const text = `${query} ${explicitLocation ?? ""}`.toLowerCase();
+
+  if (text.includes("mumbai") || text.includes("bombay") || text.includes("sassoon") || text.includes("alibaug") || text.includes("palghar") || text.includes("thane") || text.includes("raigad")) {
+    return INDIAN_COASTAL_ZONES.mumbai;
+  }
+  if (text.includes("veraval") || text.includes("gujarat") || text.includes("saurashtra") || text.includes("okha") || text.includes("kutch") || text.includes("dwarka")) {
+    return INDIAN_COASTAL_ZONES.veraval;
+  }
+  if (text.includes("porbandar")) {
+    return INDIAN_COASTAL_ZONES.porbandar;
+  }
+  if (text.includes("kochi") || text.includes("cochin") || text.includes("kerala") || text.includes("malabar") || text.includes("vizhinjam") || text.includes("kollam") || text.includes("calicut")) {
+    return INDIAN_COASTAL_ZONES.kochi;
+  }
+  if (text.includes("chennai") || text.includes("madras") || text.includes("kasimedu") || text.includes("tamil nadu") || text.includes("pondicherry")) {
+    return INDIAN_COASTAL_ZONES.chennai;
+  }
+  if (text.includes("rameswaram") || text.includes("palk bay") || text.includes("gulf of mannar") || text.includes("mandapam") || text.includes("tuticorin") || text.includes("kanyakumari")) {
+    return INDIAN_COASTAL_ZONES.rameswaram;
+  }
+  if (text.includes("goa") || text.includes("panaji") || text.includes("mormugao") || text.includes("karwar") || text.includes("mangalore") || text.includes("mangaluru")) {
+    return INDIAN_COASTAL_ZONES.goa;
+  }
+  if (text.includes("visakhapatnam") || text.includes("vizag") || text.includes("andhra") || text.includes("kakinada")) {
+    return INDIAN_COASTAL_ZONES.visakhapatnam;
+  }
+  if (text.includes("paradip") || text.includes("puri") || text.includes("odisha") || text.includes("orissa") || text.includes("gopalpur") || text.includes("dhamra")) {
+    return INDIAN_COASTAL_ZONES.paradip;
+  }
+  if (text.includes("digha") || text.includes("kolkata") || text.includes("bengal") || text.includes("sundarbans") || text.includes("haldia")) {
+    return INDIAN_COASTAL_ZONES.digha;
+  }
+  if (text.includes("malvan") || text.includes("sindhudurg") || text.includes("devgad")) {
+    return INDIAN_COASTAL_ZONES.sindhudurg;
+  }
+  if (text.includes("ratnagiri") || text.includes("jaigad")) {
+    return INDIAN_COASTAL_ZONES.ratnagiri;
+  }
+
+  // Fallback: If coordinates provided, find closest zone
+  if (explicitCoordinates) {
+    const lat = explicitCoordinates.latitude;
+    if (lat >= 18.0 && lat <= 20.0) return INDIAN_COASTAL_ZONES.mumbai;
+    if (lat >= 20.0 && lat <= 23.0) return INDIAN_COASTAL_ZONES.veraval;
+    if (lat >= 14.5 && lat <= 16.5) return INDIAN_COASTAL_ZONES.goa;
+    if (lat >= 8.0 && lat <= 11.5) return INDIAN_COASTAL_ZONES.kochi;
+    if (lat >= 12.0 && lat <= 14.0) return INDIAN_COASTAL_ZONES.chennai;
+  }
+
+  // Default baseline: Mumbai Coastal Waters (India's premier commercial maritime hub)
+  return INDIAN_COASTAL_ZONES.mumbai;
+}
+
 /**
  * Creates dynamic Vercel AI SDK delegation tools for all registered marine agents.
  */
@@ -59,10 +264,12 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
     tools[toolName] = createTool({
       description: `Delegates a task to the ${agent.name} (${agent.icon?.value ?? "🤖"}). ${agent.description}`,
       inputSchema: jsonSchemaToZod(agentDelegationSchema),
-      execute: async ({ query, location = "Ratnagiri", coordinates, specificParameters = {} }) => {
+      execute: async ({ query, location, coordinates, specificParameters = {} }) => {
         const startTime = Date.now();
-        const lat = coordinates?.latitude ?? 16.9902;
-        const lon = coordinates?.longitude ?? 73.3120;
+        const zone = resolveIndianCoastalZone(query, location, coordinates);
+        const lat = coordinates?.latitude ?? zone.latitude;
+        const lon = coordinates?.longitude ?? zone.longitude;
+        const resolvedLocationName = zone.name;
 
         return safe(async () => {
           let agentOutput: any = {};
@@ -70,13 +277,15 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
           switch (agent.id) {
             case "weather-cyclone-agent": {
               const [weatherRes, cycloneRes] = await Promise.all([
-                (imdWeatherTool.execute as any)({ coastalRegion: location, districtName: location, latitude: lat, longitude: lon }),
+                (imdWeatherTool.execute as any)({ coastalRegion: resolvedLocationName, districtName: resolvedLocationName, latitude: lat, longitude: lon }),
                 (cycloneTool.execute as any)({ basin: "North Indian Ocean", vesselLat: lat, vesselLon: lon }),
               ]);
               agentOutput = {
                 specialist: agent.name,
                 role: agent.instructions.role,
                 status: "VERIFIED_IMD_DATA",
+                coastalZone: zone.name,
+                referenceHarbor: zone.harbor,
                 weatherBulletin: weatherRes?.data?.coastalBulletin,
                 fishermenWarning: weatherRes?.data?.fishermenWarning,
                 districtNowcast: weatherRes?.data?.districtNowcast,
@@ -91,8 +300,8 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
               const currentVel = physicsRes?.physics?.oceanCurrents?.velocity ?? 0.38;
 
               const observation: OceanographicObservation = {
-                coordinates: { latitude: lat, longitude: lon },
-                locationName: location,
+                coordinates: { latitude: zone.pfzCoordinates.latitude, longitude: zone.pfzCoordinates.longitude },
+                locationName: zone.name,
                 seaSurfaceTemperature: sstVal,
                 chlorophyllConcentrationMgM3: specificParameters.chlorophyll ?? 0.95,
                 oceanCurrentVelocityMs: currentVel,
@@ -107,6 +316,15 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
               agentOutput = {
                 specialist: agent.name,
                 role: agent.instructions.role,
+                coastalZone: zone.name,
+                referenceHarbor: zone.harbor,
+                targetSpecies: zone.targetSpecies,
+                nearestPfzZone: {
+                  coordinates: zone.pfzCoordinates,
+                  distanceNM: zone.pfzDistanceNM,
+                  distanceKm: parseFloat((zone.pfzDistanceNM * 1.852).toFixed(1)),
+                  bearing: zone.pfzBearing,
+                },
                 physics: physicsRes?.physics,
                 scientificInsights: insightRes,
               };
@@ -115,7 +333,7 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
 
             case "maritime-safety-agent": {
               const hazidParams: ImoHazidParameters = {
-                locationName: location,
+                locationName: resolvedLocationName,
                 latitude: lat,
                 longitude: lon,
                 windSpeedKmph: specificParameters.windSpeedKmph ?? 22,
@@ -132,6 +350,8 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
               agentOutput = {
                 specialist: agent.name,
                 role: agent.instructions.role,
+                coastalZone: zone.name,
+                referenceHarbor: zone.harbor,
                 imoFsaAssessment: riskRes,
               };
               break;
