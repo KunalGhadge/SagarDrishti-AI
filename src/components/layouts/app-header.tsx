@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "ui/tooltip";
 import {
   AudioWaveformIcon,
   ChevronDown,
-  MessageCircleDashed,
+  Globe,
   PanelLeft,
 } from "lucide-react";
 import { Button } from "ui/button";
@@ -147,12 +147,12 @@ export function AppHeader() {
                   }));
                 }}
               >
-                <MessageCircleDashed className="size-4" />
+                <Globe className="size-4 text-foreground/80 hover:text-primary transition-colors" />
               </Button>
             </TooltipTrigger>
             <TooltipContent align="end" side="bottom">
               <div className="text-xs flex items-center gap-2">
-                {t("KeyboardShortcuts.toggleTemporaryChat")}
+                <span>Copernicus Marine Satellite Map</span>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                   {getShortcutKeyList(Shortcuts.toggleTemporaryChat).map(
                     (key) => (
