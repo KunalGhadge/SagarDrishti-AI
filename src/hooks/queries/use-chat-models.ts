@@ -20,10 +20,27 @@ export const useChatModels = (options?: SWRConfiguration) => {
     fallbackData: [],
     onSuccess: (data) => {
       const status = appStore.getState();
-      if (!status.chatModel) {
-        const firstProvider = data[0].provider;
-        const model = data[0].models[0].name;
-        appStore.setState({ chatModel: { provider: firstProvider, model } });
+      const googleProvider = data.find((p) => p.provider === "google");
+      const targetModel =
+        googleProvider?.models.find((m) => m.name === "gemini-2.5-flash")?.name ||
+        googleProvider?.models[0]?.name ||
+        data.find((p) => p.hasAPIKey)?.models[0]?.name ||
+        data[0]?.models[0]?.name;
+
+      const targetProvider =
+        googleProvider?.provider ||
+        data.find((p) => p.hasAPIKey)?.provider ||
+        data[0]?.provider;
+
+      if (
+        !status.chatModel ||
+        (status.chatModel.provider !== "google" && googleProvider?.hasAPIKey)
+      ) {
+        if (targetProvider && targetModel) {
+          appStore.setState({
+            chatModel: { provider: targetProvider, model: targetModel },
+          });
+        }
       }
     },
     ...options,
