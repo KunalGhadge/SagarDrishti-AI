@@ -22,6 +22,13 @@ import {
 import { ObjectJsonSchema7 } from "app-types/util";
 import { SAGARDRISHTI_PRESEEDED_WORKFLOWS } from "lib/ai/marine-workflows-seed";
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUUID(str: string | undefined | null): boolean {
+  return typeof str === "string" && UUID_REGEX.test(str);
+}
+
 export const pgWorkflowRepository: WorkflowRepository = {
   async selectToolByIds(ids) {
     if (!ids.length) return [];
@@ -39,6 +46,8 @@ export const pgWorkflowRepository: WorkflowRepository = {
         };
       });
 
+    const validIds = ids.filter(isValidUUID);
+    if (!validIds.length) return preseededMatches;
 
     const rows = await pgDb
       .select({
@@ -57,7 +66,7 @@ export const pgWorkflowRepository: WorkflowRepository = {
       )
       .where(
         and(
-          inArray(WorkflowTable.id, ids),
+          inArray(WorkflowTable.id, validIds),
           eq(WorkflowTable.isPublished, true),
         ),
       );
@@ -177,46 +186,59 @@ export const pgWorkflowRepository: WorkflowRepository = {
         name: preseeded.name,
         description: preseeded.description,
         icon: preseeded.icon as any,
-        version: preseeded.version,
+        version: preseeded.version || "1.0.0",
         isPublished: preseeded.isPublished,
         visibility: preseeded.visibility as any,
-        userId: preseeded.userId,
+        userId: preseeded.userId || "system",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
     }
 
-    const [workflow] = await pgDb
-      .select()
-      .from(WorkflowTable)
-      .where(eq(WorkflowTable.id, id));
-    return workflow as DBWorkflow;
-  },
+    if (!isValidUUID(id)) return null;
 
+    try {
+      const [workflow] = await pgDb
+        .select()
+        .from(WorkflowTable)
+        .where(eq(WorkflowTable.id, id));
+      return workflow as DBWorkflow;
+    } catch {
+      return null;
+    }
+  },
 
   async checkAccess(workflowId, userId, readOnly = true) {
     if (SAGARDRISHTI_PRESEEDED_WORKFLOWS.some((w) => w.id === workflowId)) {
       return true;
     }
 
+    if (!isValidUUID(workflowId) || !isValidUUID(userId)) {
+      return false;
+    }
 
-    const [workflow] = await pgDb
-      .select({
-        visibility: WorkflowTable.visibility,
-        userId: WorkflowTable.userId,
-      })
-      .from(WorkflowTable)
-      .where(and(eq(WorkflowTable.id, workflowId)));
-    if (!workflow) {
+    try {
+      const [workflow] = await pgDb
+        .select({
+          visibility: WorkflowTable.visibility,
+          userId: WorkflowTable.userId,
+        })
+        .from(WorkflowTable)
+        .where(and(eq(WorkflowTable.id, workflowId)));
+      if (!workflow) {
+        return false;
+      }
+      if (userId == workflow.userId) return true;
+      if (workflow.visibility === "private") {
+        return false;
+      }
+      if (workflow.visibility == "readonly" && !readOnly) return false;
+      return true;
+    } catch {
       return false;
     }
-    if (userId == workflow.userId) return true;
-    if (workflow.visibility === "private") {
-      return false;
-    }
-    if (workflow.visibility == "readonly" && !readOnly) return false;
-    return true;
   },
+
 
   async delete(id) {
     const result = await pgDb
@@ -356,34 +378,39 @@ export const pgWorkflowRepository: WorkflowRepository = {
       };
     }
 
-    const [workflow] = await pgDb
-      .select()
-      .from(WorkflowTable)
-      .where(eq(WorkflowTable.id, id));
+    if (!isValidUUID(id)) return null;
 
-    if (!workflow) return null;
+    try {
+      const [workflow] = await pgDb
+        .select()
+        .from(WorkflowTable)
+        .where(eq(WorkflowTable.id, id));
 
-    const nodeWhere = opt?.ignoreNote
-      ? and(
-          eq(WorkflowNodeDataTable.workflowId, id),
-          not(eq(WorkflowNodeDataTable.kind, NodeKind.Note)),
-        )
-      : eq(WorkflowNodeDataTable.workflowId, id);
+      if (!workflow) return null;
 
-    const nodePromises = pgDb
-      .select()
-      .from(WorkflowNodeDataTable)
-      .where(nodeWhere);
-    const edgePromises = pgDb
-      .select()
-      .from(WorkflowEdgeTable)
-      .where(eq(WorkflowEdgeTable.workflowId, id));
-    const [nodes, edges] = await Promise.all([nodePromises, edgePromises]);
-    return {
-      ...(workflow as DBWorkflow),
-      nodes: (nodes || []) as DBNode[],
-      edges: (edges || []) as DBEdge[],
-    };
+      const nodeWhere = opt?.ignoreNote
+        ? and(
+            eq(WorkflowNodeDataTable.workflowId, id),
+            not(eq(WorkflowNodeDataTable.kind, NodeKind.Note)),
+          )
+        : eq(WorkflowNodeDataTable.workflowId, id);
+
+      const nodePromises = pgDb
+        .select()
+        .from(WorkflowNodeDataTable)
+        .where(nodeWhere);
+      const edgePromises = pgDb
+        .select()
+        .from(WorkflowEdgeTable)
+        .where(eq(WorkflowEdgeTable.workflowId, id));
+      const [nodes, edges] = await Promise.all([nodePromises, edgePromises]);
+      return {
+        ...(workflow as DBWorkflow),
+        nodes: (nodes || []) as DBNode[],
+        edges: (edges || []) as DBEdge[],
+      };
+    } catch {
+      return null;
+    }
   },
-
 };
