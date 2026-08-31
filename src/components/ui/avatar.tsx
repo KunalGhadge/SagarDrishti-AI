@@ -1,0 +1,72 @@
+"use client";
+
+import type * as React from "react";
+import * as AvatarPrimitive from "@radix-ui/react-avatar";
+
+import { cn } from "lib/utils";
+
+function Avatar({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+  return (
+    <AvatarPrimitive.Root
+      data-slot="avatar"
+      className={cn(
+        "relative flex size-8 shrink-0 overflow-hidden rounded",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function AvatarImage({
+  className,
+  src,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+  const isValidUrl =
+    typeof src === "string" &&
+    (src.startsWith("http://") ||
+      src.startsWith("https://") ||
+      src.startsWith("data:") ||
+      src.startsWith("blob:") ||
+      src.startsWith("/api/") ||
+      src.startsWith("/avatars/") ||
+      src.startsWith("/uploads/") ||
+      /\.(png|jpe?g|svg|gif|webp|ico)(\?.*)?$/i.test(src));
+
+  if (!isValidUrl) {
+    return null;
+  }
+
+
+  return (
+    <AvatarPrimitive.Image
+      data-slot="avatar-image"
+      className={cn("aspect-square size-full", className)}
+      src={src}
+      {...props}
+    />
+  );
+}
+
+
+function AvatarFallback({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+  return (
+    <AvatarPrimitive.Fallback
+      data-slot="avatar-fallback"
+      className={cn(
+        "bg-muted flex size-full items-center justify-center rounded-full",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export { Avatar, AvatarImage, AvatarFallback };
