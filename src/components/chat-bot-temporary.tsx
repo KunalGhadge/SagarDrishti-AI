@@ -1,7 +1,7 @@
 "use client";
 import { appStore } from "@/app/store";
 import { cn } from "lib/utils";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "ui/button";
 import {
   Drawer,
@@ -11,16 +11,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "ui/drawer";
-import {
-  ExternalLink,
-  Globe,
-  Loader2,
-  Maximize2,
-  Minimize2,
-  RefreshCw,
-  Waves,
-  X,
-} from "lucide-react";
+import { ExternalLink, Globe, Maximize2, Minimize2, X } from "lucide-react";
 import { Separator } from "ui/separator";
 import { useShallow } from "zustand/shallow";
 import { isShortcutEvent, Shortcuts } from "lib/keyboard-shortcuts";
@@ -31,12 +22,8 @@ export function ChatBotTemporary() {
     useShallow((state) => [state.temporaryChat, state.mutate]),
   );
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [hasOpenedOnce, setHasOpenedOnce] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const setOpen = (bool: boolean) => {
-    if (bool) setHasOpenedOnce(true);
     appStoreMutate({
       temporaryChat: {
         ...temporaryChat,
@@ -46,40 +33,23 @@ export function ChatBotTemporary() {
   };
 
   useEffect(() => {
-    if (temporaryChat.isOpen) {
-      setHasOpenedOnce(true);
-    }
-  }, [temporaryChat.isOpen]);
-
-  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isShortcutEvent(e, Shortcuts.toggleTemporaryChat)) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        appStoreMutate((prev) => {
-          const nextState = !prev.temporaryChat.isOpen;
-          if (nextState) setHasOpenedOnce(true);
-          return {
-            temporaryChat: {
-              ...prev.temporaryChat,
-              isOpen: nextState,
-            },
-          };
-        });
+        appStoreMutate((prev) => ({
+          temporaryChat: {
+            ...prev.temporaryChat,
+            isOpen: !prev.temporaryChat.isOpen,
+          },
+        }));
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [temporaryChat.isOpen]);
-
-  const handleRefresh = () => {
-    if (iframeRef.current) {
-      setIsLoaded(false);
-      iframeRef.current.src = "https://data.marine.copernicus.eu/-/mhal4xhrnv";
-    }
-  };
 
   return (
     <Drawer
@@ -93,50 +63,34 @@ export function ChatBotTemporary() {
           userSelect: "text",
         }}
         className={cn(
-          "px-4 flex flex-col transition-all duration-300 z-50 bg-background/95 backdrop-blur-xl border-l border-border/50",
+          "px-4 flex flex-col transition-all duration-300 z-50",
           isFullscreen
             ? "w-screen max-w-none h-full rounded-none inset-0"
-            : "w-full md:w-[780px] lg:w-[900px] h-full",
+            : "w-full md:w-[750px] lg:w-[850px] h-full",
         )}
       >
         <DrawerHeader className="px-0 py-3 border-b border-border/40 mb-3">
           <DrawerTitle className="flex items-center gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
-                <Globe className="size-4 animate-pulse" />
+            <div className="flex items-center gap-2">
+              <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <Globe className="size-4" />
               </div>
               <div className="flex flex-col text-left">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm sm:text-base tracking-tight">
-                    Copernicus Marine Satellite GIS Map
+                  <span className="font-bold text-sm sm:text-base">
+                    Copernicus Marine Satellite & Ocean GIS
                   </span>
-                  <span className="text-[10px] bg-emerald-500/10 text-emerald-400 font-semibold px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
-                    <span className="size-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    LIVE 60 FPS
+                  <span className="text-[10px] bg-emerald-500/10 text-emerald-500 font-semibold px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    LIVE GIS
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground hidden sm:block">
-                  GPU-Accelerated Global Ocean Waves, SST & Surface Currents
+                  Real-time Global SST, Wave Dynamics & Ocean Currents
                 </span>
               </div>
             </div>
 
             <div className="flex-1" />
-
-            {/* Refresh / Reload */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={"secondary"}
-                  size="icon"
-                  className="rounded-full h-8 w-8 hover:bg-secondary transition-colors"
-                  onClick={handleRefresh}
-                >
-                  <RefreshCw className="size-3.5 text-muted-foreground" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Reload Map Feed</TooltipContent>
-            </Tooltip>
 
             {/* Fullscreen Toggle */}
             <Tooltip>
@@ -144,7 +98,7 @@ export function ChatBotTemporary() {
                 <Button
                   variant={"secondary"}
                   size="icon"
-                  className="rounded-full h-8 w-8 hover:bg-secondary transition-colors"
+                  className="rounded-full h-8 w-8"
                   onClick={() => setIsFullscreen((prev) => !prev)}
                 >
                   {isFullscreen ? (
@@ -155,7 +109,7 @@ export function ChatBotTemporary() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                {isFullscreen ? "Exit Fullscreen" : "Fullscreen GIS Map"}
+                {isFullscreen ? "Exit Fullscreen" : "Fullscreen Map"}
               </TooltipContent>
             </Tooltip>
 
@@ -165,7 +119,7 @@ export function ChatBotTemporary() {
                 <Button
                   variant={"secondary"}
                   size="icon"
-                  className="rounded-full h-8 w-8 hover:bg-secondary transition-colors"
+                  className="rounded-full h-8 w-8"
                   asChild
                 >
                   <a
@@ -186,7 +140,7 @@ export function ChatBotTemporary() {
             <DrawerClose asChild>
               <Button
                 variant={"secondary"}
-                className="flex items-center gap-1 rounded-full h-8 px-3 hover:bg-secondary transition-colors"
+                className="flex items-center gap-1 rounded-full h-8 px-3"
               >
                 <X className="size-4" />
                 <Separator orientation="vertical" className="h-3" />
@@ -202,47 +156,16 @@ export function ChatBotTemporary() {
           </DrawerDescription>
         </DrawerHeader>
 
-        {/* Live Copernicus Marine Map Container with Hardware Acceleration */}
+        {/* Live Copernicus Marine Map Iframe */}
         <div className="flex-1 w-full h-full min-h-[400px] mb-4 relative rounded-xl overflow-hidden border border-border/60 bg-muted/20 shadow-inner">
-          {/* High-Tech Loading Overlay */}
-          {!isLoaded && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/90 backdrop-blur-md gap-3">
-              <div className="relative">
-                <Loader2 className="size-8 animate-spin text-primary" />
-                <Waves className="size-4 text-primary absolute inset-0 m-auto" />
-              </div>
-              <div className="flex flex-col items-center text-center gap-1">
-                <p className="text-xs font-semibold text-foreground">
-                  Initializing Copernicus Marine WebGL Engine...
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Streaming satellite bathymetry & ocean physics layers
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Iframe with GPU acceleration and keep-alive */}
-          {hasOpenedOnce && (
-            <iframe
-              ref={iframeRef}
-              src="https://data.marine.copernicus.eu/-/mhal4xhrnv"
-              width="100%"
-              height="100%"
-              className={cn(
-                "w-full h-full border-0 min-h-[350px] rounded-lg transition-opacity duration-500",
-                isLoaded ? "opacity-100" : "opacity-0",
-              )}
-              style={{
-                transform: "translateZ(0)",
-                willChange: "transform",
-              }}
-              allow="geolocation; fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              title="Copernicus Marine Satellite & Ocean GIS Map"
-              loading="eager"
-              onLoad={() => setIsLoaded(true)}
-            />
-          )}
+          <iframe
+            src="https://data.marine.copernicus.eu/-/mhal4xhrnv"
+            width="100%"
+            height={isFullscreen ? "100%" : "350px"}
+            className="w-full h-full border-0 min-h-[350px] rounded-lg"
+            allow="geolocation; fullscreen; cross-origin-isolated"
+            title="Copernicus Marine Satellite & Ocean GIS Map"
+          />
         </div>
       </DrawerContent>
     </Drawer>
