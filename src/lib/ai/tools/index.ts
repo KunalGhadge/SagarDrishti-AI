@@ -11,6 +11,7 @@ export enum DefaultToolName {
   CreateBarChart = "createBarChart",
   CreateLineChart = "createLineChart",
   CreateTable = "createTable",
+  CreateMapView = "createMapView",
   WebSearch = "webSearch",
   WebContent = "webContent",
   Http = "http",

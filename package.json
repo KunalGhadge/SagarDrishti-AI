@@ -1,12 +1,10 @@
 {
   "name": "sagardrishti-ai",
   "version": "1.0.0",
-
   "description": "SagarDrishti AI (ORCA) — Agentic Marine Intelligence & Decision Support Platform for SIH 2026 / ISRO Problem Statement 26176",
   "private": true,
   "author": "Team WE#",
   "license": "MIT",
-
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -46,7 +44,6 @@
     "docker:pg": "docker run --name sagardrishti-pg -e POSTGRES_PASSWORD=your_password -e POSTGRES_USER=your_username -e POSTGRES_DB=sagardrishti_ai -p 5432:5432 -d postgres",
     "docker:redis": "docker run --name sagardrishti-redis -p 6379:6379 -d redis:7-alpine",
     "docker:app": "docker build -f docker/Dockerfile -t sagardrishti-ai . && docker run -p 3000:3000 -e NO_HTTPS=1 sagardrishti-ai",
-
     "prepare": "husky",
     "playwright:install": "playwright install",
     "check": "pnpm lint:fix && pnpm check-types && pnpm test"
@@ -88,6 +85,7 @@
     "@tiptap/react": "^2.27.1",
     "@tiptap/starter-kit": "^2.27.1",
     "@tiptap/suggestion": "^2.27.1",
+    "@types/leaflet": "^1.9.22",
     "@vercel/blob": "^2.0.0",
     "@xyflow/react": "^12.10.0",
     "ai": "^5.0.116",
@@ -108,6 +106,7 @@
     "ioredis": "^5.8.2",
     "json-schema": "^0.4.0",
     "katex": "^0.16.27",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.486.0",
     "mermaid": "^11.12.2",
     "nanoid": "^5.1.6",

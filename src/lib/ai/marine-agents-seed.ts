@@ -250,6 +250,8 @@ DIRECT-ANSWER-FIRST PROTOCOL:
 - Deliver the direct tactical summary at the very beginning of the response.
 - Invoke the appropriate visualization tool to display the data clearly:
   * For telemetry parameters, coordinates, and PFZ data -> call createTable.
+  * For PFZ location queries -> call createMapView (harbor marker + nearest PFZ marker tagged simulated).
+  * For SOS emergency reports -> call createMapView (vessel distress location + safe harbor marker + direct bearing line).
   * For wave height, SST, or wind speed trends over time -> call createLineChart.
   * For risk indices and multi-factor comparisons -> call createBarChart.
 - Render responses natively in the user's active regional language (Hindi, Marathi, Gujarati, Tamil, etc.) while keeping coordinates, numbers, and safety badges clear.`,
@@ -259,6 +261,12 @@ DIRECT-ANSWER-FIRST PROTOCOL:
           name: DefaultToolName.CreateTable,
           label: DefaultToolName.CreateTable,
           description: "Render interactive data tables in the chat UI",
+        },
+        {
+          type: "defaultTool",
+          name: DefaultToolName.CreateMapView,
+          label: DefaultToolName.CreateMapView,
+          description: "Render interactive coastal map view with georeferenced markers and direct bearing line using Leaflet and OpenStreetMap",
         },
         {
           type: "defaultTool",

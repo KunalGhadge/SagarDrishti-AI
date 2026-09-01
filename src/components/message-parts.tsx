@@ -695,6 +695,14 @@ const InteractiveTable = dynamic(
   },
 );
 
+const MapView = dynamic(
+  () => import("./tool-invocation/map-view").then((mod) => mod.MapView),
+  {
+    ssr: false,
+    loading,
+  },
+);
+
 const WebSearchToolInvocation = dynamic(
   () =>
     import("./tool-invocation/web-search").then(
@@ -940,6 +948,13 @@ export const ToolMessagePart = memo(
           case DefaultToolName.CreateTable:
             return (
               <InteractiveTable
+                key={`${toolCallId}-${toolName}`}
+                {...(input as any)}
+              />
+            );
+          case DefaultToolName.CreateMapView:
+            return (
+              <MapView
                 key={`${toolCallId}-${toolName}`}
                 {...(input as any)}
               />

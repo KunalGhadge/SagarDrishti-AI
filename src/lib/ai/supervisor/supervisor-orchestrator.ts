@@ -407,6 +407,30 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
                 ];
               }
 
+              let mapView: any = undefined;
+
+              if (pipelineResult.intent === "PFZ_LOCATION" && ep.bioOptics.nearestPfzCoordinates.value) {
+                mapView = {
+                  title: `Potential Fishing Zone (PFZ) Map - ${ep.location.coastalZone.value}`,
+                  markers: [
+                    {
+                      lat: ep.location.latitude.value,
+                      lon: ep.location.longitude.value,
+                      label: `${ep.location.harbor.value} (Departure Port)`,
+                      type: "safe_zone" as const,
+                      isSimulated: false,
+                    },
+                    {
+                      lat: ep.bioOptics.nearestPfzCoordinates.value.latitude,
+                      lon: ep.bioOptics.nearestPfzCoordinates.value.longitude,
+                      label: `Nearest PFZ (${ep.bioOptics.nearestPfzDistanceNM.value} NM, ${ep.bioOptics.nearestPfzBearing.value})`,
+                      type: "pfz" as const,
+                      isSimulated: true,
+                    },
+                  ],
+                };
+              }
+
               agentOutput = {
                 specialist: agent.name,
                 role: agent.instructions.role,
@@ -415,6 +439,7 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
                   title: `Marine Decision Matrix - ${ep.location.coastalZone.value}`,
                   rows,
                 },
+                mapView,
                 evidencePack: ep,
               };
               break;

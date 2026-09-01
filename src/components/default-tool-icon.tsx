@@ -38,6 +38,11 @@ export function DefaultToolIcon({
         <TableOfContents className={cn("size-3.5 text-blue-500", className)} />
       );
     }
+    if (name === DefaultToolName.CreateMapView) {
+      return (
+        <GlobeIcon className={cn("size-3.5 text-emerald-500", className)} />
+      );
+    }
     if (name === DefaultToolName.WebSearch) {
       return <GlobeIcon className={cn("size-3.5 text-blue-400", className)} />;
     }

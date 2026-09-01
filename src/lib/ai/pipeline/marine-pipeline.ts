@@ -21,7 +21,7 @@ export const CATEGORY_TOOL_LOOKUP: Record<
 > = {
   PFZ_LOCATION: {
     requiredAgents: ["Ocean & Earth-Observation Analytics Agent", "Geospatial & Maritime Safety Agent", "Marine Presentation & Synthesis Agent"],
-    visibleTools: ["marinePhysics", "createTable"],
+    visibleTools: ["marinePhysics", "createTable", "createMapView"],
     requiresInsightEngine: true,
     requiresRiskEngine: true,
   },
@@ -39,7 +39,7 @@ export const CATEGORY_TOOL_LOOKUP: Record<
   },
   ALERT_CHECK: {
     requiredAgents: ["Weather & Cyclone Intelligence Agent", "Geospatial & Maritime Safety Agent", "Marine Presentation & Synthesis Agent"],
-    visibleTools: ["marinePhysics", "createTable"],
+    visibleTools: ["marinePhysics", "createTable", "createMapView"],
     requiresInsightEngine: false,
     requiresRiskEngine: true,
   },
