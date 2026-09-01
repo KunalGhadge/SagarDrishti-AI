@@ -171,7 +171,7 @@ function SelectTheme() {
 
   const { theme = "light", setTheme } = useTheme();
 
-  const { themeStyle = "default", setThemeStyle } = useThemeStyle();
+  const { themeStyle = "blue", setThemeStyle } = useThemeStyle();
 
   return (
     <DropdownMenuSub>

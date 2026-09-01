@@ -8,7 +8,7 @@ const storage = getStorageManager<string>("theme-style");
 const emitter = createEmitter();
 
 export function useThemeStyle() {
-  const [themeStyle, _setThemeStyle] = useState(storage.get("default"));
+  const [themeStyle, _setThemeStyle] = useState(storage.get("blue") || "blue");
 
   const setThemeStyle = useCallback((value: string) => {
     storage.set(value);
