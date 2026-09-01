@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const createMapViewTool = createTool({
   description:
-    "Render an interactive coastal map view with georeferenced maritime markers and an optional direct bearing line using Leaflet and OpenStreetMap tiles. Strictly for PFZ location and SOS emergency safe harbor guidance.",
+    "Render an interactive coastal map view with georeferenced maritime markers and optional direct bearing line using Leaflet and OpenStreetMap tiles. Call this whenever the user asks for a map, fishing zones, navigation points, coordinates, routes, or safe harbors.",
   inputSchema: z.object({
     title: z.string().optional().describe("Title for the map view card"),
     markers: z
