@@ -556,17 +556,6 @@ export function createMarineSupervisorTools(
 
           const executionDurationMs = Date.now() - startTime;
 
-          // Write step trace event if dataStream is active
-          if (dataStream) {
-            dataStream.write({
-              type: "agent-step-complete" as any,
-              agentName: agent.name,
-              agentIcon: agent.icon?.value ?? "🤖",
-              durationMs: executionDurationMs,
-              outputSummary: `Completed in ${executionDurationMs}ms`,
-            } as any);
-          }
-
           return {
             success: true,
             agentId: agent.id,

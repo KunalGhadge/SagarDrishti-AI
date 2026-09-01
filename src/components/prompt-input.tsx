@@ -21,7 +21,6 @@ import { appStore, UploadedFile } from "@/app/store";
 import { useShallow } from "zustand/shallow";
 import { ChatMention, ChatModel } from "app-types/chat";
 import dynamic from "next/dynamic";
-import { ToolModeDropdown } from "./tool-mode-dropdown";
 
 import { ToolSelectDropdown } from "./tool-select-dropdown";
 import { Tooltip, TooltipContent, TooltipTrigger } from "ui/tooltip";
@@ -570,18 +569,15 @@ export default function PromptInput({
                       <XIcon className="size-3 group-hover/image-generator:opacity-100 opacity-0 transition-opacity duration-200" />
                     </Button>
                   ) : (
-                    <>
-                      <ToolModeDropdown />
-                      <ToolSelectDropdown
-                        className="mx-1"
-                        align="start"
-                        side="top"
-                        onSelectWorkflow={onSelectWorkflow}
-                        onSelectAgent={onSelectAgent}
-                        onGenerateImage={handleGenerateImage}
-                        mentions={mentions}
-                      />
-                    </>
+                    <ToolSelectDropdown
+                      className="mx-1"
+                      align="start"
+                      side="top"
+                      onSelectWorkflow={onSelectWorkflow}
+                      onSelectAgent={onSelectAgent}
+                      onGenerateImage={handleGenerateImage}
+                      mentions={mentions}
+                    />
                   ))}
 
                 <div className="flex-1 flex items-center">

@@ -150,11 +150,15 @@ export function ToolSelectDropdown({
     if (mentions?.length) {
       return mentions.map((m) => m.name);
     }
-    if (toolChoice == "none") return [];
     const translate = t.raw("defaultToolKit");
+    const activeToolkits = allowedAppDefaultToolkit ?? [
+      AppDefaultToolkit.Visualization,
+      AppDefaultToolkit.Marine,
+      AppDefaultToolkit.WebSearch,
+    ];
     const defaultTools = Object.values(AppDefaultToolkit)
-      .filter((t) => allowedAppDefaultToolkit?.includes(t))
-      .map((t) => translate[t]);
+      .filter((t) => activeToolkits.includes(t))
+      .map((t) => translate?.[t] || t);
     const mcpIds = mcpList.map((v) => v.id);
     const mcpTools = Object.values(
       objectFlow(allowedMcpServers ?? {}).filter((_, id) =>
