@@ -480,18 +480,18 @@ export async function executeMarineCorePipeline(
       nearestPfzCoordinates: {
         value: anchor.pfzCoordinates,
         status: "simulated",
-        source: "INCOIS PFZ Coastal Hotspot Registry",
+        source: "INCOIS PFZ Climatological Hotspot Registry (Simulated Baseline)",
       },
       nearestPfzDistanceNM: {
         value: anchor.pfzDistanceNM,
-        status: "real",
-        source: "Haversine Distance Math from Harbor",
+        status: "simulated",
+        source: "Haversine Distance Math to Simulated INCOIS Hotspot Point",
         unit: "NM",
       },
       nearestPfzBearing: {
         value: anchor.pfzBearing,
-        status: "real",
-        source: "Forward Azimuth Compass Calculation",
+        status: "simulated",
+        source: "Forward Azimuth Bearing to Simulated INCOIS Hotspot Point",
       },
       targetCatchSpecies: {
         value: anchor.targetSpecies,
@@ -551,8 +551,8 @@ export async function executeMarineCorePipeline(
       },
       portDangerSignalHoisted: {
         value: 0,
-        status: "real",
-        source: "Indian Ports Act Baseline Signal (NIL Hoisted)",
+        status: "simulated",
+        source: "Indian Ports Act Baseline Signal (Simulated Inactive / NIL Hoisted)",
       },
       smallCraftAdvisory: {
         value: riskResult.riskControlOptions.traditionalCraftAdvisory,
@@ -567,8 +567,8 @@ export async function executeMarineCorePipeline(
     },
     auditSummary: {
       totalFieldsCount: 28,
-      realFieldsCount: 21,
-      simulatedFieldsCount: 5,
+      realFieldsCount: 18,
+      simulatedFieldsCount: 8,
       unavailableFieldsCount: 2,
       primaryRealApisUsed: ["Open-Meteo Marine Physics REST API", "Open-Meteo Global Weather REST API", "IMO Formal Safety Assessment Engine", "Indian Coastal Coordinate Registry"],
     },
