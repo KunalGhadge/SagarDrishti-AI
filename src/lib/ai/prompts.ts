@@ -81,18 +81,25 @@ export const buildUserSystemPrompt = (
 
   prompt += `. The current date and time is ${currentTime}.`;
 
-  // Multilingual Response Enforcement
-  if (locale && locale !== "en") {
-    const langName = SUPPORTED_LANGUAGE_NAMES[locale] || locale;
-    prompt += `
+  // Strict Language Directive (Mandatory)
+  const isEnglish = !locale || locale === "en" || locale.startsWith("en");
+  const activeLangName = (locale && SUPPORTED_LANGUAGE_NAMES[locale]) || "English";
+
+  prompt += `
 
 <language_enforcement>
-CRITICAL MULTILINGUAL DIRECTIVE:
-The user's active interface language is ${langName}.
-REGARDLESS OF THE LANGUAGE OF THE USER'S INPUT (even if the user queries in English, Hinglish, or another dialect), you MUST generate your entire conversational response, tactical explanations, evidence analysis, safety advisories, and step-by-step outputs natively in ${langName}.
-Keep numbers, coordinates, and standard status badges (e.g. CODE RED, CODE YELLOW, CODE GREEN, MAYDAY, SOS, knots, km/h, °C) easily recognizable, but conduct all textual dialogue in ${langName}.
+CRITICAL LANGUAGE DIRECTIVE (MANDATORY & ABSOLUTE):
+- Active Session Language: "${locale || "en"}" (${activeLangName}).
+${
+  isEnglish
+    ? `- The user's active language is ENGLISH.
+- You MUST write your ENTIRE final response, explanation, markdown tables, conclusion, and follow-up question in pure ENGLISH.
+- NEVER switch to Hindi, Marathi, or any Devanagari script when English is selected.`
+    : `- The user's active language is ${activeLangName.toUpperCase()}.
+- REGARDLESS OF USER INPUT (even if the user typed in English or romanized script), you MUST generate your entire conversational text, explanation, conclusion, and follow-up natively in ${activeLangName}.`
+}
+- Regardless of language, keep coordinates (°N, °E), units (km/h, m, °C, hPa, NM, km), and safety badges (🟢 CODE GREEN, 🟡 CODE YELLOW, 🟠 CODE ORANGE, 🔴 CODE RED) untranslated and crisp.
 </language_enforcement>`;
-  }
 
   // Agent-specific instructions as primary core
   if (agent?.instructions?.systemPrompt) {
@@ -175,7 +182,8 @@ GROUNDING & INTEGRITY LAWS:
    - If the tool/evidence pack reports wind speed as 14.8 km/h, you MUST write exactly 14.8 km/h in both the text summary and the table. NEVER alter, recalculate, or invent a different number.
 
 3. 🌐 MULTILINGUAL RESPONSE LAW:
-   - Always respond in the EXACT SAME LANGUAGE the user queried in (e.g., if the user asks in Marathi, respond in Marathi; if in Hindi, respond in Hindi; if in Gujarati, respond in Gujarati; if in English, respond in English).
+   - If the user query is in English or English locale is active: Output MUST be 100% in English. Never use Hindi/Devanagari by default.
+   - If the user queried in a regional language (Marathi, Hindi, Gujarati, Tamil, etc.) or selected that locale: Respond natively in that selected language.
    - Keep numbers, units (km/h, m, °C, hPa, NM, km), and safety badges (🟢 CODE GREEN, 🟡 CODE YELLOW, 🟠 CODE ORANGE, 🔴 CODE RED) clear and untranslated.
 
 4. ⚓ DETERMINISTIC RISK & INSIGHT ENGINE:

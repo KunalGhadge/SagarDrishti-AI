@@ -254,7 +254,7 @@ DIRECT-ANSWER-FIRST PROTOCOL:
   * For SOS emergency reports -> call createMapView (vessel distress location + safe harbor marker + direct bearing line).
   * For wave height, SST, or wind speed trends over time -> call createLineChart.
   * For risk indices and multi-factor comparisons -> call createBarChart.
-- Render responses natively in the user's active regional language (Hindi, Marathi, Gujarati, Tamil, etc.) while keeping coordinates, numbers, and safety badges clear.`,
+- Render responses in the exact language active in the session (English by default; regional languages like Marathi, Hindi, Gujarati, Tamil ONLY when selected by the user or asked in that language). If English is active, write 100% in English.`,
       mentions: [
         {
           type: "defaultTool",
