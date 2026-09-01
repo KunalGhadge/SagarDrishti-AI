@@ -29,7 +29,7 @@ export const cycloneQuerySchema: JSONSchema7 = {
 
 export const cycloneTool = createTool({
   description:
-    "Official IMD Cyclone Tracking & Spatial Danger Cone Tool. Fetches real-time Cyclone Tracks (API 18), 27kt/34kt/50kt/64kt Gale Wind MultiPolygons (API 19), and projected Cone of Uncertainty GeoJSON corridors (API 20).",
+    "Official IMD Cyclone Tracking & Spatial Danger Cone Tool. Fetches real-time Cyclone Tracks, Gale Wind MultiPolygons, and Cone of Uncertainty GeoJSON corridors. Returns unavailable if direct government feed is offline without inserting fabricated values.",
   inputSchema: jsonSchemaToZod(cycloneQuerySchema),
   execute: async ({ cycloneName, basin = "North Indian Ocean", vesselLat, vesselLon }) => {
     return safe(async () => {
@@ -53,11 +53,36 @@ export const cycloneTool = createTool({
         fetchWithTimeout("https://api.imd.gov.in/api/v1/cyclone_cou"),
       ]);
 
+      const timestamp = new Date().toISOString();
+
+      if (!trackData && !windData && !couData) {
+        return {
+          source: "IMD Cyclone Warning Division (New Delhi)",
+          dataset: "IMD_OPERATIONAL_CYCLONE_BULLETIN_API",
+          timestamp,
+          status: "unavailable" as const,
+          error: "Direct IMD Cyclone API endpoint currently unreachable; no active storm bulletin data received.",
+          hasActiveCyclone: null,
+          cycloneName: null,
+          category: null,
+          latestPosition: null,
+          geofenceAnalysis: {
+            vesselCoordinates: vesselLat != null && vesselLon != null ? { lat: vesselLat, lon: vesselLon } : null,
+            closestStormDistanceKm: null,
+            inConeOfUncertainty: null,
+            inGaleWindRadius: null,
+            riskLevel: "unavailable",
+          },
+          windPolygonsGeoJson: null,
+          coneOfUncertaintyGeoJson: null,
+        };
+      }
+
       const hasActiveStorm = trackData?.data?.observed && trackData.data.observed.length > 0;
 
-      let inConeOfUncertainty = false;
-      let inGaleWindRadius = false;
-      let closestStormDistanceKm = 9999;
+      let inConeOfUncertainty: boolean | null = false;
+      let inGaleWindRadius: boolean | null = false;
+      let closestStormDistanceKm: number | null = null;
 
       if (hasActiveStorm && vesselLat != null && vesselLon != null) {
         const latestTrack = trackData.data.observed[trackData.data.observed.length - 1];
@@ -65,7 +90,6 @@ export const cycloneTool = createTool({
         const stormLon = parseFloat(latestTrack.lon);
 
         if (!isNaN(stormLat) && !isNaN(stormLon)) {
-          // Haversine distance calculation in km
           const R = 6371;
           const dLat = ((stormLat - vesselLat) * Math.PI) / 180;
           const dLon = ((stormLon - vesselLon) * Math.PI) / 180;
@@ -78,26 +102,27 @@ export const cycloneTool = createTool({
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           closestStormDistanceKm = Math.round(R * c);
 
-          if (closestStormDistanceKm < 300) inConeOfUncertainty = true;
-          if (closestStormDistanceKm < 150) inGaleWindRadius = true;
+          inConeOfUncertainty = closestStormDistanceKm < 300;
+          inGaleWindRadius = closestStormDistanceKm < 150;
         }
       }
 
       return {
-        success: true,
-        source: "IMD_OFFICIAL_CYCLONE_CENTRE_NEW_DELHI",
-        timestamp: new Date().toISOString(),
+        source: "IMD Cyclone Warning Division (New Delhi)",
+        dataset: "IMD_OPERATIONAL_CYCLONE_BULLETIN_API",
+        timestamp,
+        status: "live" as const,
         hasActiveCyclone: !!hasActiveStorm,
-        cycloneName: cycloneName || (hasActiveStorm ? trackData.data.observed[0]?.CYCLONE_NAME : "NIL"),
+        cycloneName: cycloneName || (hasActiveStorm ? trackData.data.observed[0]?.CYCLONE_NAME : null),
         category: hasActiveStorm ? trackData.data.observed[0]?.Category || "CYCLONIC_STORM" : "NO_ACTIVE_CYCLONE",
         latestPosition: hasActiveStorm ? {
           lat: trackData.data.observed[0]?.lat,
           lon: trackData.data.observed[0]?.lon,
-          mswKmph: trackData.data.observed[0]?.["MSW range (kmph)"] || "45-55",
+          mswKmph: trackData.data.observed[0]?.["MSW range (kmph)"] || null,
         } : null,
         geofenceAnalysis: {
           vesselCoordinates: vesselLat != null && vesselLon != null ? { lat: vesselLat, lon: vesselLon } : null,
-          closestStormDistanceKm: closestStormDistanceKm < 9999 ? closestStormDistanceKm : null,
+          closestStormDistanceKm,
           inConeOfUncertainty,
           inGaleWindRadius,
           riskLevel: inGaleWindRadius ? "EXTREME_CODE_RED" : inConeOfUncertainty ? "HIGH_CODE_ORANGE" : "LOW_CODE_GREEN",
@@ -107,15 +132,20 @@ export const cycloneTool = createTool({
       };
     })
       .ifFail((err) => ({
-        success: false,
-        isError: true,
+        source: "IMD Cyclone Warning Division (New Delhi)",
+        dataset: "IMD_OPERATIONAL_CYCLONE_BULLETIN_API",
+        timestamp: new Date().toISOString(),
+        status: "error" as const,
         error: err.message,
-        hasActiveCyclone: false,
-        category: "NO_ACTIVE_CYCLONE_REPORTED",
+        hasActiveCyclone: null,
+        category: null,
+        latestPosition: null,
         geofenceAnalysis: {
-          inConeOfUncertainty: false,
-          inGaleWindRadius: false,
-          riskLevel: "LOW_CODE_GREEN",
+          vesselCoordinates: null,
+          closestStormDistanceKm: null,
+          inConeOfUncertainty: null,
+          inGaleWindRadius: null,
+          riskLevel: "unavailable",
         },
       }))
       .unwrap();
