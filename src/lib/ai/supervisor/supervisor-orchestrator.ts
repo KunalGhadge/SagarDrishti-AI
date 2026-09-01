@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { tool as createTool, Tool, UIMessageStreamWriter } from "ai";
 import { JSONSchema7 } from "json-schema";
 import { jsonSchemaToZod } from "lib/json-schema-to-zod";
@@ -249,8 +250,32 @@ export function resolveIndianCoastalZone(
  */
 import { executeMarineCorePipeline } from "../pipeline/marine-pipeline";
 
-export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter): Record<string, Tool> {
+export function createMarineSupervisorTools(
+  dataStream?: UIMessageStreamWriter,
+  userLocation?: { latitude: number; longitude: number }
+): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
+
+  tools["get_device_gps_location"] = createTool({
+    description: "Retrieves the user's real-time live GPS device coordinates from the browser geolocation sensor.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      if (userLocation) {
+        return {
+          status: "success",
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          source: "Live Browser Geolocation API (Permission Granted)",
+          isLive: true,
+        };
+      }
+      return {
+        status: "prompt_required",
+        message: "Device GPS coordinates not yet shared. Please grant browser location access or provide nearest port.",
+        isLive: false,
+      };
+    },
+  });
 
   for (const agent of SAGARDRISHTI_PRESEEDED_AGENTS) {
     if (agent.id === "marine-planner-orchestrator") continue; // Planner is supervisor
@@ -264,8 +289,10 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
         const startTime = Date.now();
 
         return safe(async () => {
+          // Pass effective coordinates (user device GPS fallback if coordinates not explicitly typed)
+          const effectiveCoords = coordinates || userLocation;
           // Execute Core Forced Pipeline to generate Evidence Pack
-          const pipelineResult = await executeMarineCorePipeline(query, location, coordinates);
+          const pipelineResult = await executeMarineCorePipeline(query, location, effectiveCoords);
           const ep = pipelineResult.evidencePack;
 
           let agentOutput: any = {};

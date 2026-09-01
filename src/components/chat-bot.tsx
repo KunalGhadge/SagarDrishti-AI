@@ -49,6 +49,7 @@ import { getStorageManager } from "lib/browser-stroage";
 import { AnimatePresence, motion } from "framer-motion";
 import { useThreadFileUploader } from "@/hooks/use-thread-file-uploader";
 import { useFileDragOverlay } from "@/hooks/use-file-drag-overlay";
+import { useUserLocation } from "@/hooks/use-user-location";
 
 type Props = {
   threadId: string;
@@ -84,6 +85,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
   const { isDragging } = useFileDragOverlay({
     onDropFiles: handleFileDrop,
   });
+  const { location: userLocation } = useUserLocation();
 
   const [
     appStoreMutate,
@@ -213,6 +215,13 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             model: latestRef.current.threadImageToolModel[threadId],
           },
           attachments,
+          userLocation: latestRef.current.userLocation
+            ? {
+                latitude: latestRef.current.userLocation.latitude,
+                longitude: latestRef.current.userLocation.longitude,
+                accuracy: latestRef.current.userLocation.accuracy,
+              }
+            : undefined,
         };
         return { body: requestBody };
       },
@@ -244,6 +253,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     threadId,
     mentions: threadMentions[threadId],
     threadImageToolModel,
+    userLocation,
   });
 
   const isLoading = useMemo(

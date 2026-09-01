@@ -56,6 +56,8 @@ import { FileUIPart, TextUIPart } from "ai";
 import { toast } from "sonner";
 import { isFilePartSupported, isIngestSupported } from "@/lib/ai/file-support";
 import { useChatModels } from "@/hooks/queries/use-chat-models";
+import { useUserLocation } from "@/hooks/use-user-location";
+import { Navigation } from "lucide-react";
 
 interface PromptInputProps {
   placeholder?: string;
@@ -100,6 +102,7 @@ export default function PromptInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadFiles } = useThreadFileUploader(threadId);
   const { data: providers } = useChatModels();
+  const { location: userLocation, requestLocation, isLoading: isLocating } = useUserLocation();
 
   const [
     globalModel,
@@ -581,7 +584,42 @@ export default function PromptInput({
                     </>
                   ))}
 
-                <div className="flex-1" />
+                <div className="flex-1 flex items-center">
+                  {userLocation ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={requestLocation}
+                          className="h-6 text-[11px] px-2 py-0 rounded-full font-mono text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/70 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900 flex items-center gap-1"
+                        >
+                          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <Navigation className="size-2.5 fill-sky-500 text-sky-500" />
+                          <span>{userLocation.latitude.toFixed(2)}°N, {userLocation.longitude.toFixed(2)}°E</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Live Device GPS Active (Click to refresh)</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={requestLocation}
+                          className="h-6 text-[11px] px-2 py-0 rounded-full text-muted-foreground hover:text-foreground flex items-center gap-1 hover:bg-accent"
+                        >
+                          <Navigation className="size-2.5" />
+                          <span>{isLocating ? "Locating..." : "Enable GPS"}</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Enable browser live device GPS for maritime telemetry</TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
 
                 <SelectModel onSelect={setChatModel} currentModel={chatModel}>
                   <Button

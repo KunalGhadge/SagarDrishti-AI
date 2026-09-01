@@ -66,6 +66,7 @@ export const buildUserSystemPrompt = (
   userPreferences?: UserPreferences,
   agent?: Agent,
   locale?: string,
+  userLocation?: { latitude: number; longitude: number; accuracy?: number },
 ) => {
   const assistantName =
     agent?.name || userPreferences?.botName || "SagarDrishti AI";
@@ -115,6 +116,22 @@ Keep numbers, coordinates, and standard status badges (e.g. CODE RED, CODE YELLO
 <user_information>
 ${userInfo.join("\n")}
 </user_information>`;
+  }
+
+  if (userLocation?.latitude != null && userLocation?.longitude != null) {
+    prompt += `
+
+<user_live_gps_telemetry>
+Device GPS Status: ACTIVE & VERIFIED (High-Precision Browser Geolocation)
+Current Vessel Coordinates: ${userLocation.latitude.toFixed(4)}°N, ${userLocation.longitude.toFixed(4)}°E
+Accuracy: Within ${userLocation.accuracy ?? 10} meters
+Source: Live Device Browser GPS Sensor (Permission Granted)
+
+DIRECTIVE FOR EMERGENCY SOS & MARINE QUERIES:
+The user has granted active device GPS access. When the user reports an emergency or asks for sea safety, distance to boundaries, or nearest ports:
+- DO NOT ask the user to type their coordinates — you ALREADY HAVE their exact live coordinates (${userLocation.latitude.toFixed(4)}°N, ${userLocation.longitude.toFixed(4)}°E).
+- Use these coordinates immediately in the Evidence Pack, IMO Risk calculations, and Map display.
+</user_live_gps_telemetry>`;
   }
 
   // SagarDrishti AI Multi-Agent Marine Intelligence Architecture

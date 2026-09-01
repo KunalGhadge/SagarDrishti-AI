@@ -75,6 +75,7 @@ export async function POST(request: Request) {
       imageTool,
       mentions = [],
       attachments = [],
+      userLocation,
     } = chatApiSchemaRequestBodySchema.parse(json);
 
     const model = customModelProvider.getModel(chatModel);
@@ -230,6 +231,8 @@ export async function POST(request: Request) {
             loadAppDefaultTools({
               mentions,
               allowedAppDefaultToolkit,
+              dataStream,
+              userLocation,
             }),
           )
           .orElse({});
@@ -268,7 +271,7 @@ export async function POST(request: Request) {
         const currentLocale = cookieStore.get(COOKIE_KEY_LOCALE)?.value || "en";
 
         const systemPrompt = mergeSystemPrompt(
-          buildUserSystemPrompt(session.user, userPreferences, agent, currentLocale),
+          buildUserSystemPrompt(session.user, userPreferences, agent, currentLocale, userLocation),
           buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations),
           !supportToolCall && buildToolCallUnsupportedModelSystemPrompt,
         );
