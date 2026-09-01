@@ -51,8 +51,6 @@ import { nanoBananaTool, openaiImageTool } from "lib/ai/tools/image";
 import { ImageToolName } from "lib/ai/tools";
 import { buildCsvIngestionPreviewParts } from "@/lib/ai/ingest/csv-ingest";
 import { serverFileStorage } from "lib/file-storage";
-import { executeMarineCorePipeline } from "lib/ai/pipeline/marine-pipeline";
-import { isGreetingQuery } from "lib/ai/pipeline/intent-classifier";
 
 const logger = globalLogger.withDefaults({
   message: colorize("blackBright", `Chat API: `),
@@ -272,31 +270,9 @@ export async function POST(request: Request) {
         const cookieStore = await cookies();
         const currentLocale = cookieStore.get(COOKIE_KEY_LOCALE)?.value || "en";
 
-        const lastUserMsg =
-          messages
-            .filter((m) => m.role === "user")
-            .pop()
-            ?.parts?.map((p: any) => (p.type === "text" ? p.text : ""))
-            .join(" ") || "";
-
-        const isGreeting = isGreetingQuery(lastUserMsg);
-
-        let marineContext = "";
-        try {
-          if (lastUserMsg.trim() && !isGreeting) {
-            const marineRes = await executeMarineCorePipeline(lastUserMsg, undefined, userLocation);
-            if (marineRes?.groundedPromptContext) {
-              marineContext = marineRes.groundedPromptContext;
-            }
-          }
-        } catch (err) {
-          logger.error("Marine core pipeline execution error:", err);
-        }
-
         const systemPrompt = mergeSystemPrompt(
           buildUserSystemPrompt(session.user, userPreferences, agent, currentLocale, userLocation),
           buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations),
-          marineContext,
           !supportToolCall && buildToolCallUnsupportedModelSystemPrompt,
         );
 
