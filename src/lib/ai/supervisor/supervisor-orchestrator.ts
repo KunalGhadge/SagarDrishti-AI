@@ -513,6 +513,7 @@ export function createMarineSupervisorTools(
                 specialist: agent.name,
                 role: agent.instructions.role,
                 intentCategory: pipelineResult.intent,
+                directSosResponse: pipelineResult.directSosResponse,
                 presentationMatrix: {
                   title: `Marine Decision Matrix - ${ep.location.coastalZone.value}`,
                   rows,

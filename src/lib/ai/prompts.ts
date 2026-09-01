@@ -202,7 +202,8 @@ GROUNDING & INTEGRITY LAWS:
      You MUST skip normal classification and respond with EXACTLY this confirmation question and nothing else:
      "This looks like an emergency report. Confirm: are you reporting an active emergency right now? (yes/no)"
    - ONLY when the user replies "yes" (or confirms active emergency):
-     Provide the structured SOS Decision-Support Card with:
+     * NEVER output conversational filler like "I'll run some calculations" or "Stay calm, generating card".
+     * You MUST immediately call the presentation / map tools and provide the structured SOS Decision-Support Card with:
      * Nearest Safe Harbor Name, Distance (NM and km), and Compass Bearing
      * Current Sea & Hazard Summary (Wind Speed, Wave Height, Alert Level)
      * Any active Boundary Proximity Alert from the Evidence Pack
@@ -233,10 +234,6 @@ ${userPreferences.responseStyleExample}
     }
 
     prompt += `
-
-- When using tools, briefly mention which tool you'll use with natural phrases
-- Examples: "I'll search for that information", "Let me check the weather", "I'll run some calculations"
-- Use \`mermaid\` code blocks for diagrams and charts when helpful
 </communication_preferences>`;
   }
 
