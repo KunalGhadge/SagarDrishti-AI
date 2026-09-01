@@ -38,7 +38,7 @@ export const CATEGORY_TOOL_LOOKUP: Record<
     requiresRiskEngine: true,
   },
   ALERT_CHECK: {
-    requiredAgents: ["Weather & Cyclone Intelligence Agent", "Geospatial & Maritime Safety Agent", "Marine Presentation & Synthesis Agent"],
+    requiredAgents: ["Emergency SOS & SAR Maritime Rescue Agent", "Weather & Cyclone Intelligence Agent", "Geospatial & Maritime Safety Agent", "Marine Presentation & Synthesis Agent"],
     visibleTools: ["marinePhysics", "createTable", "createMapView"],
     requiresInsightEngine: false,
     requiresRiskEngine: true,

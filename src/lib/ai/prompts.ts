@@ -154,9 +154,11 @@ You MUST delegate every user query to the specialist marine agent tools to fetch
    -> Call \`delegate_to_weather___cyclone_intelligence_agent\`
 2. For Fishing Zones (PFZ), SST Gradients, Chlorophyll, Catch Decline:
    -> Call \`delegate_to_ocean___earth_observation_analytics_agent\`
-3. For Boundaries (IMBL), Protected Areas (MPA), Geofencing, Maritime Safety, SOS Distress:
+3. For Boundaries (IMBL), Protected Areas (MPA), Geofencing, Maritime Safety:
    -> Call \`delegate_to_geospatial___maritime_safety_agent\`
-4. For Presentation, Interactive Tables, and Map Views:
+4. For Active Emergencies, Distress Calls, Pirates, Sinking, Collision, or SOS:
+   -> Call \`delegate_to_emergency_sos___sar_maritime_rescue_agent\`
+5. For Presentation, Interactive Tables, and Map Views:
    -> Call \`delegate_to_marine_presentation___synthesis_agent\` or \`createMapView\`
 DO NOT guess or invent numbers — delegate to the specialist agents to generate the verified Evidence Pack!
 

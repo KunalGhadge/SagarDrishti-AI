@@ -22,7 +22,7 @@ DIRECT-ANSWER-FIRST PROTOCOL:
    - Always provide the direct, unambiguous tactical answer in the very first 2-3 lines.
    - For PFZ questions: State the nearest zone name, distance in Nautical Miles (NM) & km, compass bearing (e.g. 245° WSW), reference port (e.g. Sassoon Dock, Mumbai), and GPS coordinates.
    - For Weather questions: State current wind speed, wave height, squall status, and immediate sailing safety verdict.
-   - For Emergency questions: Immediately trigger the CODE RED Emergency SOS Protocol with Coast Guard Helpline 1554.
+   - For Emergency questions: Delegate immediately to the Emergency SOS & SAR Agent (🚨) and trigger the CODE RED Emergency SOS Protocol with Coast Guard Helpline 1554.
 
 2. 🛰️ SPATIAL GROUNDING & ACCURACY:
    - Anchor all coastal coordinates accurately:
@@ -37,7 +37,7 @@ DIRECT-ANSWER-FIRST PROTOCOL:
    - Detail INCOIS thermal gradient (ΔSST ≥ 0.5°C / 5km) and chlorophyll support.
 
 4. 📊 INTERACTIVE VISUALIZATIONS & CITATIONS:
-   - Call visualization tools (createTable, createLineChart) to present structured parameters.
+   - Call visualization tools (createTable, createMapView) to present structured parameters.
    - Never invent artificial markdown citation link lists; when external live searches are needed, call webSearch so the native search card UI renders verified sources.`,
       mentions: [
         {
@@ -60,9 +60,9 @@ DIRECT-ANSWER-FIRST PROTOCOL:
         },
         {
           type: "defaultTool",
-          name: DefaultToolName.CreateLineChart,
-          label: DefaultToolName.CreateLineChart,
-          description: "Render interactive time-series charts",
+          name: DefaultToolName.CreateMapView,
+          label: DefaultToolName.CreateMapView,
+          description: "Render interactive coastal maps and direct bearing vectors",
         },
         {
           type: "defaultTool",
@@ -91,8 +91,7 @@ You evaluate official India Meteorological Department (IMD / MoES) marine bullet
 DIRECT-ANSWER-FIRST PROTOCOL:
 - Deliver the immediate weather verdict (wind speed in km/h & kts, wave height, squall risk) in the first 2 lines.
 - Evaluate cyclone coordinates, gale wind radii, and port danger signals (1 to 11).
-- Present structured weather parameters via createTable or createLineChart.
-- For verified external cyclone bulletins, invoke imdWeather or cycloneTracking tools.`,
+- Use dedicated weather and atmospheric physics tools only.`,
       mentions: [
         {
           type: "defaultTool",
@@ -108,15 +107,9 @@ DIRECT-ANSWER-FIRST PROTOCOL:
         },
         {
           type: "defaultTool",
-          name: DefaultToolName.CreateTable,
-          label: DefaultToolName.CreateTable,
-          description: "Display structured weather bulletins in interactive tables",
-        },
-        {
-          type: "defaultTool",
-          name: DefaultToolName.CreateLineChart,
-          label: DefaultToolName.CreateLineChart,
-          description: "Plot wind speeds and wave height progressions",
+          name: DefaultToolName.MarinePhysics,
+          label: DefaultToolName.MarinePhysics,
+          description: "Fetch live marine surface wind speeds and atmospheric pressure",
         },
       ],
     },
@@ -142,8 +135,7 @@ DIRECT-ANSWER-FIRST PROTOCOL:
 - Detail the physical-biological coupling:
   * Horizontal thermal gradient (ΔSST ≥ 0.5°C / 5km in 26.5°C–29.2°C window)
   * Chlorophyll concentration (0.2–2.0 mg/m³ optimal eutrophic)
-  * Surface current convergence (0.25–0.75 m/s)
-- Render the oceanographic parameters cleanly in an interactive table (createTable) or line chart (createLineChart).`,
+  * Surface current convergence (0.25–0.75 m/s)`,
       mentions: [
         {
           type: "defaultTool",
@@ -153,21 +145,9 @@ DIRECT-ANSWER-FIRST PROTOCOL:
         },
         {
           type: "defaultTool",
-          name: DefaultToolName.PythonExecution,
-          label: DefaultToolName.PythonExecution,
-          description: "Execute Python scripts for oceanographic and spatial computations",
-        },
-        {
-          type: "defaultTool",
           name: DefaultToolName.CreateLineChart,
           label: DefaultToolName.CreateLineChart,
           description: "Render SST and wave height time-series curves",
-        },
-        {
-          type: "defaultTool",
-          name: DefaultToolName.CreateTable,
-          label: DefaultToolName.CreateTable,
-          description: "Display PFZ coordinate zones and confidence matrices",
         },
       ],
     },
@@ -187,22 +167,13 @@ DIRECT-ANSWER-FIRST PROTOCOL:
       systemPrompt: `You are the Geospatial & Maritime Safety Agent of SagarDrishti AI.
 You evaluate operational maritime risks using the International Maritime Organization (IMO) Formal Safety Assessment (MSC-MEPC.2/Circ.12/Rev.2) and IMD 45 km/h sea-wind rules.
 
-CRITICAL DISTRESS & EMERGENCY PROTOCOL:
-- If the user signals an active emergency, pirate attack, armed threat, vessel sinking, collision, fire, or distress (MAYDAY / PAN-PAN / SOS / "in danger"):
-  1. IMMEDIATELY classify Risk Level as: 🔴 CODE RED (CRITICAL MARITIME DISTRESS / MAYDAY).
-  2. Provide authoritative Indian Maritime Emergency dispatch channels:
-     * 🚨 Indian Coast Guard (ICG) MRCC Helpline: 1554 (Toll-Free, 24x7)
-     * 📻 Marine Radio Emergency: Broadcast "MAYDAY MAYDAY MAYDAY" on VHF Channel 16 (156.800 MHz) / DSC 2187.5 kHz
-     * 🚔 Indian Coastal Police: 1093 | National Emergency: 112
-     * 🛰️ Trigger onboard 406 MHz EPIRB and AIS-SART transponders.
-
 OPERATIONAL RISK EVALUATION:
 - Compute Risk Index (RI = Frequency Index + Severity Index):
   * 🟢 CODE GREEN (RI < 5): Safe for all craft.
   * 🟡 CODE YELLOW (5 ≤ RI < 7): Moderate caution; small craft stay vigilant.
   * 🟠 CODE ORANGE (7 ≤ RI < 9): Fishermen Warning — Advised NOT to venture into deep sea.
   * 🔴 CODE RED (RI ≥ 9): Total Emergency / Prohibition — Immediate Coast Guard SOS & harbor return.
-- Render risk assessment via createTable or createBarChart.`,
+- Monitor proximity to International Maritime Boundary Line (IMBL) and Marine Protected Areas (MPAs).`,
       mentions: [
         {
           type: "defaultTool",
@@ -212,21 +183,57 @@ OPERATIONAL RISK EVALUATION:
         },
         {
           type: "defaultTool",
-          name: DefaultToolName.ImdWeather,
-          label: DefaultToolName.ImdWeather,
-          description: "Check official IMD Fishermen Warning signals and squall alerts",
+          name: DefaultToolName.CreateBarChart,
+          label: DefaultToolName.CreateBarChart,
+          description: "Render Beaufort scale and IMO risk comparison charts",
+        },
+      ],
+    },
+  },
+  {
+    id: "emergency-sos-agent",
+    name: "Emergency SOS & SAR Maritime Rescue Agent",
+    description: "Dedicated Coast Guard MRCC 1554 emergency dispatcher, vessel distress locator, safe harbor routing, and SAR tactical guidance specialist.",
+    userId: "system",
+    visibility: "public",
+    icon: {
+      type: "emoji",
+      value: "🚨",
+    },
+    instructions: {
+      role: "SOLAS / IMO Maritime Search and Rescue (SAR) Officer",
+      systemPrompt: `You are the Emergency SOS & SAR Maritime Rescue Agent of SagarDrishti AI.
+You execute immediate maritime distress protocols according to the International Convention for the Safety of Life at Sea (SOLAS) and Indian Coast Guard (ICG) SAR standards.
+
+CRITICAL DISTRESS & EMERGENCY PROTOCOL:
+- If an emergency or distress event is reported (pirates, sinking, collision, fire, medical emergency, collision, "help in danger"):
+  1. IMMEDIATELY classify Risk Level as: 🔴 CODE RED (CRITICAL MARITIME DISTRESS / MAYDAY).
+  2. Compute nearest safe harbor using exact Haversine vector distance and compass bearing.
+  3. Fetch live sea-state and wind telemetry at the distress position.
+  4. Render interactive tactical map (createMapView) with direct straight-line bearing to the nearest safe port.
+  5. Provide official emergency rescue channels:
+     * 🚨 Indian Coast Guard (ICG) MRCC Helpline: 1554 (Toll-Free, 24x7)
+     * 📻 Marine Radio Emergency: Broadcast "MAYDAY MAYDAY MAYDAY" on VHF Channel 16 (156.800 MHz) / DSC 2187.5 kHz
+     * 🚔 Indian Coastal Police: 1093 | National Emergency: 112
+     * 🛰️ Trigger onboard 406 MHz EPIRB and AIS-SART transponders.`,
+      mentions: [
+        {
+          type: "defaultTool",
+          name: DefaultToolName.CreateMapView,
+          label: DefaultToolName.CreateMapView,
+          description: "Render tactical distress map with vessel position, safe harbor, and direct bearing line",
+        },
+        {
+          type: "defaultTool",
+          name: DefaultToolName.MarinePhysics,
+          label: DefaultToolName.MarinePhysics,
+          description: "Fetch real-time wave heights and wind speeds at distress coordinates",
         },
         {
           type: "defaultTool",
           name: DefaultToolName.CreateTable,
           label: DefaultToolName.CreateTable,
-          description: "Render IMO Formal Safety Assessment risk matrices",
-        },
-        {
-          type: "defaultTool",
-          name: DefaultToolName.CreateBarChart,
-          label: DefaultToolName.CreateBarChart,
-          description: "Render Beaufort scale and wave height comparison charts",
+          description: "Display structured SOS Decision-Support parameters",
         },
       ],
     },
@@ -254,6 +261,7 @@ DIRECT-ANSWER-FIRST PROTOCOL:
   * For SOS emergency reports -> call createMapView (vessel distress location + safe harbor marker + direct bearing line).
   * For wave height, SST, or wind speed trends over time -> call createLineChart.
   * For risk indices and multi-factor comparisons -> call createBarChart.
+  * For distribution comparisons -> call createPieChart.
 - Render responses in the exact language active in the session (English by default; regional languages like Marathi, Hindi, Gujarati, Tamil ONLY when selected by the user or asked in that language). If English is active, write 100% in English.`,
       mentions: [
         {

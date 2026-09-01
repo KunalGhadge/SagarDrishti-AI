@@ -395,6 +395,28 @@ export function createMarineSupervisorTools(
               break;
             }
 
+            case "emergency-sos-agent": {
+              agentOutput = {
+                specialist: agent.name,
+                role: agent.instructions.role,
+                intentCategory: pipelineResult.intent,
+                directSosResponse: pipelineResult.directSosResponse,
+                emergencyStatus: {
+                  alertLevel: "🔴 CODE RED (CRITICAL MARITIME DISTRESS)",
+                  icgHelpline: "1554 (Toll-Free, 24x7)",
+                  vhfChannel: "Channel 16 (156.800 MHz)",
+                  nearestSafeHarbor: ep.location.harbor.value,
+                  coordinates: `${ep.location.latitude.value}°N, ${ep.location.longitude.value}°E`,
+                },
+                weather: {
+                  windSpeed: `${ep.weather.surfaceWindSpeedKmph.value} km/h`,
+                  waveHeight: `${ep.oceanPhysics.significantWaveHeightMeters.value} m`,
+                },
+                evidencePack: ep,
+              };
+              break;
+            }
+
             case "presentation-synthesis-agent": {
               let rows: Array<{ parameter: string; value: string; status?: string }> = [];
 
