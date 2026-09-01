@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, PropsWithChildren } from "react";
+import { memo, useMemo, PropsWithChildren } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -187,17 +187,25 @@ const components: Partial<Components> = {
 };
 
 const NonMemoizedMarkdown = ({ children }: { children: string }) => {
+  const sanitizedContent = useMemo(() => {
+    if (!children || typeof children !== "string") return children;
+    return children
+      .replace(/<tool_code>[\s\S]*?<\/tool_code>/gi, "")
+      .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
+      .trim();
+  }, [children]);
+
   return (
     <article className="w-full h-full relative">
-      {isJson(children) ? (
-        <JsonView data={children} />
+      {isJson(sanitizedContent) ? (
+        <JsonView data={sanitizedContent} />
       ) : (
         <ReactMarkdown
           components={components}
           remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[rehypeKatex]}
         >
-          {children}
+          {sanitizedContent}
         </ReactMarkdown>
       )}
     </article>

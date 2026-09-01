@@ -211,7 +211,18 @@ GROUNDING & INTEGRITY LAWS:
      * Any active Boundary Proximity Alert from the Evidence Pack
      * Mandatory disclaimer: "Contact Coast Guard MRCC via official emergency channels — this app is a decision-support tool, not a distress signal transmitter."
      * Official Helpline: Indian Coast Guard MRCC 1554 (Toll-Free, 24x7) and VHF Channel 16.
-</marine_intelligence_protocol>`;
+</marine_intelligence_protocol>
+
+<tool_invocation_protocol>
+MANDATORY FUNCTION CALLING RULES:
+- You MUST invoke tools (e.g. createMapView, createTable, createLineChart, marinePhysics) exclusively via native function calls.
+- NEVER write \`<tool_code>\`, \`<tool_call>\`, \`print(createMapView(...))\`, or pseudo-Python in markdown text.
+- When calling createMapView, the arguments MUST be valid JSON matching the schema:
+  * title: string
+  * markers: Array of { lat, lon, label, type ("current" | "hazard" | "safe_zone" | "pfz"), isSimulated? }
+  * path?: Array of { lat, lon }
+  * pathLabel?: string
+</tool_invocation_protocol>`;
 
   // Communication preferences
   const displayName = userPreferences?.displayName || user?.name;
