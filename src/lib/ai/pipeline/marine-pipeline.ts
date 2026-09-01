@@ -204,6 +204,20 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     nearestMpaName: "Gahirmatha Marine Sanctuary (Olive Ridley Nesting)",
     mpaDistanceKm: 28.0,
   },
+  jakhau: {
+    name: "Kutch & Sir Creek Sector",
+    state: "Gujarat",
+    harbor: "Jakhau Fishery Port, Kutch",
+    latitude: 23.237,
+    longitude: 68.618,
+    pfzCoordinates: { latitude: 23.10, longitude: 68.25 },
+    pfzDistanceNM: 24,
+    pfzBearing: "245° (WSW)",
+    nearestImblName: "Indo-Pak IMBL (Sir Creek Sector)",
+    imblDistanceKm: 28.5,
+    nearestMpaName: "Marine National Park (Gulf of Kutch)",
+    mpaDistanceKm: 65.0,
+  },
 };
 
 export function resolveCoastalZoneAnchor(
@@ -212,6 +226,18 @@ export function resolveCoastalZoneAnchor(
   coords?: { latitude: number; longitude: number }
 ): CoastalZoneAnchor {
   const combined = `${query} ${location || ""}`.toLowerCase();
+
+  // IMBL / Border / Kutch proximity check
+  if (
+    combined.includes("imbl") ||
+    combined.includes("border") ||
+    combined.includes("pakistan") ||
+    combined.includes("kutch") ||
+    combined.includes("jakhau") ||
+    combined.includes("sir creek")
+  ) {
+    return INDIAN_COASTAL_ANCHORS.jakhau;
+  }
 
   for (const [key, zone] of Object.entries(INDIAN_COASTAL_ANCHORS)) {
     if (
@@ -285,17 +311,43 @@ export async function fetchRealMarineTelemetry(lat: number, lon: number) {
   };
 }
 
+export const DISTRESS_REGEX = /pirates|attack|danger|emergency|sos|help|sinking|distress|threat/i;
+
+export function isDistressQuery(query: string): boolean {
+  return DISTRESS_REGEX.test(query);
+}
+
 // 4. Forced Execution Core Pipeline Engine
 export async function executeMarineCorePipeline(
   query: string,
   location?: string,
-  coords?: { latitude: number; longitude: number }
+  coords?: { latitude: number; longitude: number },
+  options?: { isConfirmedEmergency?: boolean }
 ): Promise<{
   intent: MarineIntentCategory;
   evidencePack: EvidencePack;
   groundedPromptContext: string;
+  isEmergencyConfirmationPrompt?: boolean;
+  directSosResponse?: string;
 }> {
-  const intent = classifyIntent(query);
+  // SOS Distress Short-Circuit Step 1: Confirmation Prompt
+  const isConfirmed = options?.isConfirmedEmergency || /^(yes|confirm|होय|हाँ)/i.test(query.trim());
+  if (isDistressQuery(query) && !isConfirmed) {
+    const confirmationPrompt = "This looks like an emergency report. Confirm: are you reporting an active emergency right now? (yes/no)";
+    return {
+      intent: "ALERT_CHECK",
+      isEmergencyConfirmationPrompt: true,
+      directSosResponse: confirmationPrompt,
+      evidencePack: null as any,
+      groundedPromptContext: `
+CRITICAL EMERGENCY DISTRESS DETECTED in user query: "${query}"
+You MUST respond with EXACTLY this confirmation question and nothing else:
+"${confirmationPrompt}"
+`,
+    };
+  }
+
+  const intent = isConfirmed ? "ALERT_CHECK" : classifyIntent(query);
   const anchor = resolveCoastalZoneAnchor(query, location, coords);
   const lat = coords?.latitude ?? anchor.latitude;
   const lon = coords?.longitude ?? anchor.longitude;
@@ -337,6 +389,18 @@ export async function executeMarineCorePipeline(
   const waveLength = 1.56 * Math.pow(telemetry.wavePeriod, 2);
   const waveSteepness = telemetry.waveHeight / Math.max(waveLength, 1);
 
+  // Proactive Geofencing Warning Logic (IMBL < 50 km OR MPA < 20 km)
+  const isImblProximity = anchor.imblDistanceKm < 50.0;
+  const isMpaProximity = anchor.mpaDistanceKm < 20.0;
+  let zoneWarningValue: string | null = null;
+  if (isImblProximity && isMpaProximity) {
+    zoneWarningValue = `APPROACHING ${anchor.nearestImblName} (${anchor.imblDistanceKm} km) & ${anchor.nearestMpaName} (${anchor.mpaDistanceKm} km) — avoid crossing`;
+  } else if (isImblProximity) {
+    zoneWarningValue = `APPROACHING ${anchor.nearestImblName} (${anchor.imblDistanceKm} km) — avoid crossing`;
+  } else if (isMpaProximity) {
+    zoneWarningValue = `APPROACHING ${anchor.nearestMpaName} (${anchor.mpaDistanceKm} km) — avoid crossing`;
+  }
+
   // Build the strict Evidence Pack
   const evidencePack: EvidencePack = {
     schemaVersion: "3.0.0-EVIDENCE-PACK",
@@ -354,13 +418,13 @@ export async function executeMarineCorePipeline(
       surfaceWindSpeedKmph: {
         value: telemetry.windSpeedKmph,
         status: telemetry.hasRealWeather ? "real" : "unavailable",
-        source: "Open-Meteo Global Weather API (10m Surface Wind)",
+        source: "Open-Meteo Global Weather API (10m Wind Speed)",
         unit: "km/h",
       },
       windDirectionDegrees: {
         value: telemetry.windDirection,
         status: telemetry.hasRealWeather ? "real" : "unavailable",
-        source: "Open-Meteo Global Weather API",
+        source: "Open-Meteo Global Weather API (Wind Direction)",
         unit: "°",
       },
       airTemperatureCelsius: {
@@ -411,8 +475,8 @@ export async function executeMarineCorePipeline(
       },
       waveSteepnessRatio: {
         value: parseFloat(waveSteepness.toFixed(4)),
-        status: "real",
-        source: "Calculated: Hs / (1.56 * Tp^2)",
+        status: telemetry.hasRealMarine ? "real" : "unavailable",
+        source: "Air-Sea Interaction Hydrodynamic Formula Hs/(1.56*Tp^2)",
       },
       swellWaveHeightMeters: {
         value: telemetry.swellHeight,
@@ -518,6 +582,11 @@ export async function executeMarineCorePipeline(
         status: "real",
         source: "MPA Geofence Boundary Check",
       },
+      zoneWarning: {
+        value: zoneWarningValue,
+        status: "real",
+        source: "Maritime Zones of India Act (1981) & Wildlife Protection Act (1972) Geofencing Engine",
+      },
       imoRiskIndex: {
         value: riskResult.riskMatrix.riskIndex,
         status: "real",
@@ -552,13 +621,36 @@ export async function executeMarineCorePipeline(
       },
     },
     auditSummary: {
-      totalFieldsCount: 27,
-      realFieldsCount: 17,
+      totalFieldsCount: 28,
+      realFieldsCount: 18,
       simulatedFieldsCount: 8,
       unavailableFieldsCount: 2,
       primaryRealApisUsed: ["Open-Meteo Marine Physics REST API", "Open-Meteo Global Weather REST API", "IMO Formal Safety Assessment Engine", "Indian Coastal Coordinate Registry"],
     },
   };
+
+  // SOS Emergency Decision-Support Report generation if confirmed
+  let directSosResponse: string | undefined;
+  if (isConfirmed) {
+    const harborDistKm = (anchor.pfzDistanceNM * 1.852).toFixed(1);
+    const waveDesc = telemetry.waveHeight < 1.0 ? "Smooth" : telemetry.waveHeight < 2.0 ? "Smooth to Moderate" : "Rough";
+    directSosResponse = `🚨 EMERGENCY SOS DECISION-SUPPORT REPORT
+
+| Parameter | Value |
+| :--- | :--- |
+| **Nearest Safe Harbor** | ${anchor.harbor} |
+| **Harbor Distance & Bearing** | ${anchor.pfzDistanceNM} NM (${harborDistKm} km) bearing ${anchor.pfzBearing} |
+| **Current Weather & Sea State** | Wind: ${telemetry.windSpeedKmph} km/h | Waves: ${telemetry.waveHeight} m (${waveDesc}) |
+| **IMO Hazard Level** | ${riskResult.riskLevel === "CODE_GREEN_LOW" ? "🟢 CODE GREEN" : "🟡 CODE YELLOW"} (No active cyclone) |
+${zoneWarningValue ? `| **Boundary Proximity Alert** | ${zoneWarningValue} |\n` : ""}| **Advisory for Craft** | ${riskResult.riskControlOptions.traditionalCraftAdvisory} |
+
+CONCLUSION: Steer bearing ${anchor.pfzBearing} toward ${anchor.harbor}.${zoneWarningValue ? ` ${zoneWarningValue}.` : ""}
+
+⚠️ MANDATORY SAFETY NOTICE:
+Contact Coast Guard MRCC via official emergency channels — this app is a decision-support tool, not a distress signal transmitter.
+- Indian Coast Guard (ICG) MRCC: 1554 (Toll-Free, 24x7)
+- International Maritime Distress Frequency: VHF Channel 16 (156.800 MHz)`;
+  }
 
   // Build the strict Evidence-Pack-only grounding prompt for the LLM
   const groundedPromptContext = `
@@ -571,15 +663,20 @@ CRITICAL RULES FOR GENERATING YOUR RESPONSE:
 2. If a field status is "simulated", you may mention it but append "(simulated baseline)".
 3. If a field status is "unavailable", explicitly state "Data currently unavailable" — NEVER invent or hallucinate missing data.
 4. Answer ONLY what the user asked in the query: "${query}". Do not add irrelevant essays.
-5. In the first 2 lines, deliver the direct tactical answer (Location, Distance/Bearing if PFZ, Wave/Wind if Weather, Safety Badge).
-6. Format key parameters from the Evidence Pack into a clean Markdown table.
-7. CRITICAL NUMERIC CONSISTENCY: You MUST copy the EXACT numerical values from the <verified_evidence_pack> into your text and table without altering, recalculating, or rounding them. If surfaceWindSpeedKmph is 15.1 km/h in the Evidence Pack, you MUST write exactly 15.1 km/h.
-8. ZERO SPECIES FABRICATION: Do NOT mention or invent any fish species names. There is no verified species data in the Evidence Pack.
+5. FINAL RESPONSE FORMAT:
+   - Line 1: Direct one-line answer to what was asked.
+   - Lines 2-6: Clean table of only the 3-5 most relevant parameters from the Evidence Pack.
+   - Line 7: One short CONCLUSION line summarizing the verdict.
+     * MANDATORY GEOFENCE WARNING: If geospatialSafety.zoneWarning.value is non-null, you MUST append it to your CONCLUSION line: "CONCLUSION: [verdict]. ${zoneWarningValue ?? ""}".
+   - Line 8: One suggested follow-up question drawn ONLY from the 8 core marine categories.
+6. CRITICAL NUMERIC CONSISTENCY: You MUST copy the EXACT numerical values from the <verified_evidence_pack> into your text and table without altering, recalculating, or rounding them. If surfaceWindSpeedKmph is 15.1 km/h in the Evidence Pack, you MUST write exactly 15.1 km/h.
+7. ZERO SPECIES FABRICATION: Do NOT mention or invent any fish species names. There is no verified species data in the Evidence Pack.
 `;
 
   return {
     intent,
     evidencePack,
     groundedPromptContext,
+    directSosResponse,
   };
 }

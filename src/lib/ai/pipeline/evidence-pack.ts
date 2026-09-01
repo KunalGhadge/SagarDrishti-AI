@@ -59,6 +59,7 @@ export interface EvidencePackGeospatialSafety {
   nearestMarineProtectedArea: EvidenceField<string | null>;
   distanceToMpaKm: EvidenceField<number | null>;
   isInsideRestrictedMpa: EvidenceField<boolean>;
+  zoneWarning: EvidenceField<string | null>;
   imoRiskIndex: EvidenceField<number>;
   imoSafetyBadge: EvidenceField<"CODE_GREEN" | "CODE_YELLOW" | "CODE_ORANGE" | "CODE_RED">;
   portDangerSignalHoisted: EvidenceField<number | null>;

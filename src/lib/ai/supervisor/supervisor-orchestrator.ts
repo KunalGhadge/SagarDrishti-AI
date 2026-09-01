@@ -161,6 +161,16 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzDistanceNM: 26,
     pfzBearing: "120° (ESE)",
   },
+  jakhau: {
+    name: "Kutch & Sir Creek Sector",
+    state: "Gujarat",
+    harbor: "Jakhau Fishery Port, Kutch",
+    latitude: 23.2370,
+    longitude: 68.6180,
+    pfzCoordinates: { latitude: 23.1000, longitude: 68.2500 },
+    pfzDistanceNM: 24,
+    pfzBearing: "245° (WSW)",
+  },
   digha: {
     name: "Digha & Northern Bay of Bengal",
     state: "West Bengal",
@@ -180,6 +190,9 @@ export function resolveIndianCoastalZone(
 ): CoastalZoneInfo {
   const text = `${query} ${explicitLocation ?? ""}`.toLowerCase();
 
+  if (text.includes("imbl") || text.includes("border") || text.includes("pakistan") || text.includes("jakhau") || text.includes("sir creek")) {
+    return INDIAN_COASTAL_ZONES.jakhau;
+  }
   if (text.includes("mumbai") || text.includes("bombay") || text.includes("sassoon") || text.includes("alibaug") || text.includes("palghar") || text.includes("thane") || text.includes("raigad")) {
     return INDIAN_COASTAL_ZONES.mumbai;
   }
