@@ -12,6 +12,7 @@ import { pythonExecutionTool } from "./code/python-run-tool";
 import { imdWeatherTool } from "./marine/imd-weather-tool";
 import { cycloneTool } from "./marine/cyclone-tool";
 import { marinePhysicsTool } from "./marine/marine-physics-tool";
+import { noaaChlorophyllTool } from "./marine/noaa-chlorophyll-tool";
 
 export const APP_DEFAULT_TOOL_KIT: Record<
   AppDefaultToolkit,
@@ -39,6 +40,7 @@ export const APP_DEFAULT_TOOL_KIT: Record<
     [DefaultToolName.ImdWeather]: imdWeatherTool,
     [DefaultToolName.CycloneTracking]: cycloneTool,
     [DefaultToolName.MarinePhysics]: marinePhysicsTool,
+    [DefaultToolName.NoaaChlorophyll]: noaaChlorophyllTool,
   },
 };
 
