@@ -19,9 +19,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SagarDrishti AI — Agentic Marine Intelligence & Decision Support Platform",
+  title: {
+    default: "SagarDrishti AI — Agentic Marine Intelligence & Decision Support",
+    template: "%s | SagarDrishti AI",
+  },
   description:
-    "SagarDrishti AI (ORCA) — Autonomous Marine Intelligence & Decision Support System. Developed by Team WE# for Smart India Hackathon (SIH 2026 / ISRO Problem Statement 26176).",
+    "SagarDrishti AI (ORCA) — Autonomous Marine Intelligence & Decision Support System for ISRO Problem Statement 26176 / Smart India Hackathon 2026.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "SagarDrishti AI — Autonomous Marine Decision Support",
+    description:
+      "Operational oceanography, real-time meteorology, IMO safety indexing, and geofenced coastal decision support.",
+    siteName: "SagarDrishti AI",
+    type: "website",
+  },
 };
 
 
