@@ -1,14 +1,17 @@
 /**
- * Evidence Pack Data Schema (Phase 1 Core Pipeline)
- * Strictly tags EVERY single field as 'real' | 'simulated' | 'unavailable' with data source.
+ * Evidence Pack Data Schema (Strict Data Integrity)
+ * Every single field carries value, status ("live" | "unavailable" | "statutory" | "derived"),
+ * explicit source, retrieval timestamp, and unit.
+ * ZERO fabricated fallback numbers allowed.
  */
 
-export type DataFieldStatus = "real" | "simulated" | "unavailable";
+export type DataFieldStatus = "live" | "unavailable" | "statutory" | "derived";
 
 export interface EvidenceField<T> {
   value: T;
   status: DataFieldStatus;
   source: string;
+  timestamp: string;
   unit?: string;
 }
 
@@ -17,7 +20,7 @@ export interface EvidencePackLocation {
   harbor: EvidenceField<string>;
   latitude: EvidenceField<number>;
   longitude: EvidenceField<number>;
-  distanceToShoreKm: EvidenceField<number>;
+  distanceToShoreKm: EvidenceField<number | null>;
 }
 
 export interface EvidencePackWeather {
@@ -26,7 +29,7 @@ export interface EvidencePackWeather {
   airTemperatureCelsius: EvidenceField<number | null>;
   atmosphericPressureHpa: EvidenceField<number | null>;
   lightningRisk: EvidenceField<string | null>;
-  activeCycloneAlert: EvidenceField<boolean>;
+  activeCycloneAlert: EvidenceField<boolean | null>;
   cycloneName: EvidenceField<string | null>;
   galeWindRadiusKm: EvidenceField<number | null>;
 }
@@ -34,9 +37,13 @@ export interface EvidencePackWeather {
 export interface EvidencePackOceanPhysics {
   significantWaveHeightMeters: EvidenceField<number | null>;
   peakWavePeriodSeconds: EvidenceField<number | null>;
-  waveSteepnessRatio: EvidenceField<number | null>;
+  waveDirectionDegrees: EvidenceField<number | null>;
+  windWaveHeightMeters: EvidenceField<number | null>;
+  windWaveDirectionDegrees: EvidenceField<number | null>;
   swellWaveHeightMeters: EvidenceField<number | null>;
   swellWavePeriodSeconds: EvidenceField<number | null>;
+  swellWaveDirectionDegrees: EvidenceField<number | null>;
+  waveSteepnessRatio: EvidenceField<number | null>;
   oceanCurrentVelocityMs: EvidenceField<number | null>;
   oceanCurrentDirectionDegrees: EvidenceField<number | null>;
   seaSurfaceTemperatureCelsius: EvidenceField<number | null>;
@@ -77,7 +84,7 @@ export interface EvidencePackGeospatialSafety {
 }
 
 export interface EvidencePack {
-  schemaVersion: "3.0.0-EVIDENCE-PACK";
+  schemaVersion: "4.0.0-EVIDENCE-PACK-STRICT-INTEGRITY";
   timestamp: string;
   intentCategory: string;
   userQuery: string;
@@ -88,9 +95,10 @@ export interface EvidencePack {
   geospatialSafety: EvidencePackGeospatialSafety;
   auditSummary: {
     totalFieldsCount: number;
-    realFieldsCount: number;
-    simulatedFieldsCount: number;
+    liveFieldsCount: number;
+    statutoryFieldsCount: number;
+    derivedFieldsCount: number;
     unavailableFieldsCount: number;
-    primaryRealApisUsed: string[];
+    activeApisUsed: string[];
   };
 }

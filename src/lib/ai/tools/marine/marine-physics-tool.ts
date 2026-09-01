@@ -8,15 +8,15 @@ export const marinePhysicsQuerySchema: JSONSchema7 = {
   properties: {
     latitude: {
       type: "number",
-      description: "Latitude coordinate of coastal or deep-sea point (e.g., 16.9902 for Ratnagiri)",
+      description: "Latitude coordinate of coastal or deep-sea point (e.g., 18.922 for Mumbai)",
     },
     longitude: {
       type: "number",
-      description: "Longitude coordinate of coastal or deep-sea point (e.g., 73.3120 for Ratnagiri)",
+      description: "Longitude coordinate of coastal or deep-sea point (e.g., 72.8346 for Mumbai)",
     },
     includeHourlyHistory: {
       type: "boolean",
-      description: "Whether to fetch 24-hour historical progression to compute SST and wave steepness deltas",
+      description: "Whether to fetch 24-hour historical progression",
       default: true,
     },
   },
@@ -25,11 +25,11 @@ export const marinePhysicsQuerySchema: JSONSchema7 = {
 
 export const marinePhysicsTool = createTool({
   description:
-    "Live Ocean Physics & High-Resolution Satellite SST Tool. Fetches real-time Sea Surface Temperature (SST), Significant Wave Height (Hs), Wave Direction, Peak Wave Period (Tp), Swell Surge (Kallakkadal), and Ocean Current Velocity/Direction vectors.",
+    "Live Ocean Physics & Satellite SST Tool (Open-Meteo Copernicus Marine Model). Fetches real-time Sea Surface Temperature (SST), Significant Wave Height (Hs), Wave Direction, Peak Wave Period (Tp), Wind Wave Height/Direction, Swell Wave Height/Direction/Period, and Ocean Current Velocity/Direction vectors.",
   inputSchema: jsonSchemaToZod(marinePhysicsQuerySchema),
   execute: async ({ latitude, longitude, includeHourlyHistory = true }) => {
     return safe(async () => {
-      const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${latitude}&longitude=${longitude}&current=wave_height,wave_direction,wave_period,wind_wave_height,swell_wave_height,swell_wave_period,ocean_current_velocity,ocean_current_direction&hourly=wave_height,wave_period,ocean_current_velocity&past_days=1&forecast_days=2`;
+      const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${latitude}&longitude=${longitude}&current=wave_height,wave_direction,wave_period,wind_wave_height,wind_wave_direction,swell_wave_height,swell_wave_direction,swell_wave_period,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&hourly=wave_height,wave_period,ocean_current_velocity,sea_surface_temperature&past_days=1&forecast_days=2`;
 
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 6000);
@@ -38,63 +38,86 @@ export const marinePhysicsTool = createTool({
       clearTimeout(id);
 
       if (!res.ok) {
-        throw new Error(`Marine physics service returned HTTP ${res.status}`);
+        throw new Error(`Open-Meteo marine service returned HTTP ${res.status}`);
       }
 
       const raw = await res.json();
       const current = raw.current || {};
+      const timestamp = new Date().toISOString();
 
-      // Estimate satellite SST and 24h baseline delta
-      // Indian Ocean baseline range: 27.0°C to 29.5°C with seasonal gradient
-      const baseSst = 28.2 + (Math.sin(latitude * 0.1) * 0.5);
-      const sstDelta24h = 0.3; // +0.3°C warming delta
+      const waveHeight = current.wave_height != null ? parseFloat(current.wave_height.toFixed(2)) : null;
+      const wavePeriod = current.wave_period != null ? parseFloat(current.wave_period.toFixed(1)) : null;
+      const waveDirection = current.wave_direction != null ? Math.round(current.wave_direction) : null;
+      const windWaveHeight = current.wind_wave_height != null ? parseFloat(current.wind_wave_height.toFixed(2)) : null;
+      const windWaveDirection = current.wind_wave_direction != null ? Math.round(current.wind_wave_direction) : null;
+      const swellHeight = current.swell_wave_height != null ? parseFloat(current.swell_wave_height.toFixed(2)) : null;
+      const swellDirection = current.swell_wave_direction != null ? Math.round(current.swell_wave_direction) : null;
+      const swellPeriod = current.swell_wave_period != null ? parseFloat(current.swell_wave_period.toFixed(1)) : null;
+      const currentVelocity = current.ocean_current_velocity != null ? parseFloat(current.ocean_current_velocity.toFixed(2)) : null;
+      const currentDirection = current.ocean_current_direction != null ? Math.round(current.ocean_current_direction) : null;
+      const sst = current.sea_surface_temperature != null ? parseFloat(current.sea_surface_temperature.toFixed(1)) : null;
 
-      const waveHeight = current.wave_height ?? 1.2;
-      const wavePeriod = current.wave_period ?? 6.5;
-      const currentVelocity = current.ocean_current_velocity ?? 0.35;
-      const swellHeight = current.swell_wave_height ?? 0.8;
-      const swellPeriod = current.swell_wave_period ?? 11.0;
-
-      // Compute Wave Steepness: Hs / (1.56 * Tp^2)
-      const waveLength = 1.56 * Math.pow(wavePeriod, 2);
-      const waveSteepness = waveHeight / Math.max(waveLength, 1);
-      const isSteepChop = waveSteepness > 0.04;
+      // Compute Wave Steepness if both height and period are available
+      let waveSteepness: number | null = null;
+      let isSteepChop = false;
+      if (waveHeight != null && wavePeriod != null && wavePeriod > 0) {
+        const waveLength = 1.56 * Math.pow(wavePeriod, 2);
+        waveSteepness = parseFloat((waveHeight / Math.max(waveLength, 1)).toFixed(4));
+        isSteepChop = waveSteepness > 0.04;
+      }
 
       return {
         success: true,
-        source: "OPEN_METEO_MARINE_AND_GHRSST_SATELLITE",
-        timestamp: new Date().toISOString(),
+        source: "Open-Meteo Marine API (Copernicus Marine model)",
+        timestamp,
         coordinates: { latitude, longitude },
         physics: {
           seaSurfaceTemperature: {
-            value: parseFloat(baseSst.toFixed(1)),
+            value: sst,
+            status: sst != null ? "live" : "unavailable",
             unit: "°C",
-            delta24h: sstDelta24h,
-            isOptimalPelagicWindow: baseSst >= 26.5 && baseSst <= 29.2,
+            source: sst != null ? "Open-Meteo Marine API (Copernicus Marine model)" : "Data unavailable",
+            isOptimalPelagicWindow: sst != null ? (sst >= 26.5 && sst <= 29.2) : false,
           },
           significantWaveHeight: {
             value: waveHeight,
+            status: waveHeight != null ? "live" : "unavailable",
             unit: "meters",
-            category: waveHeight < 1.5 ? "Smooth to Slight" : waveHeight <= 2.5 ? "Moderate" : "Rough",
+            category: waveHeight != null ? (waveHeight < 1.5 ? "Smooth to Slight" : waveHeight <= 2.5 ? "Moderate" : "Rough") : "unavailable",
+          },
+          waveDirection: {
+            value: waveDirection,
+            status: waveDirection != null ? "live" : "unavailable",
+            unit: "degrees",
           },
           wavePeriod: {
             value: wavePeriod,
+            status: wavePeriod != null ? "live" : "unavailable",
             unit: "seconds",
           },
-          waveSteepness: {
-            value: parseFloat(waveSteepness.toFixed(4)),
-            isSteepChop,
+          windWaves: {
+            heightMeters: windWaveHeight,
+            directionDegrees: windWaveDirection,
+            status: windWaveHeight != null ? "live" : "unavailable",
           },
-          swellSurge: {
+          swellWaves: {
             heightMeters: swellHeight,
+            directionDegrees: swellDirection,
             periodSeconds: swellPeriod,
-            isKallakkadalAlert: swellHeight > 2.0 && swellPeriod > 14.0,
+            status: swellHeight != null ? "live" : "unavailable",
+            isKallakkadalAlert: swellHeight != null && swellPeriod != null ? (swellHeight > 2.0 && swellPeriod > 14.0) : false,
+          },
+          waveSteepness: {
+            value: waveSteepness,
+            status: waveSteepness != null ? "derived" : "unavailable",
+            isSteepChop,
           },
           oceanCurrents: {
             velocity: currentVelocity,
+            directionDegrees: currentDirection,
+            status: currentVelocity != null ? "live" : "unavailable",
             unit: "m/s",
-            directionDegrees: current.ocean_current_direction ?? 240,
-            isConvergenceZone: currentVelocity >= 0.25 && currentVelocity <= 0.75,
+            isConvergenceZone: currentVelocity != null ? (currentVelocity >= 0.25 && currentVelocity <= 0.75) : false,
           },
         },
       };
@@ -103,13 +126,18 @@ export const marinePhysicsTool = createTool({
         success: false,
         isError: true,
         error: err.message,
-        source: "MARINE_PHYSICS_FALLBACK",
+        source: "Open-Meteo Marine API (Request Failed / Data Unavailable)",
+        timestamp: new Date().toISOString(),
         coordinates: { latitude, longitude },
         physics: {
-          seaSurfaceTemperature: { value: 28.0, unit: "°C", delta24h: 0.0, isOptimalPelagicWindow: true },
-          significantWaveHeight: { value: 1.2, unit: "meters", category: "Smooth to Slight" },
-          wavePeriod: { value: 6.0, unit: "seconds" },
-          oceanCurrents: { velocity: 0.35, unit: "m/s", directionDegrees: 220, isConvergenceZone: true },
+          seaSurfaceTemperature: { value: null, status: "unavailable", unit: "°C" },
+          significantWaveHeight: { value: null, status: "unavailable", unit: "meters" },
+          waveDirection: { value: null, status: "unavailable", unit: "degrees" },
+          wavePeriod: { value: null, status: "unavailable", unit: "seconds" },
+          windWaves: { heightMeters: null, directionDegrees: null, status: "unavailable" },
+          swellWaves: { heightMeters: null, directionDegrees: null, periodSeconds: null, status: "unavailable" },
+          waveSteepness: { value: null, status: "unavailable", isSteepChop: false },
+          oceanCurrents: { velocity: null, directionDegrees: null, status: "unavailable" },
         },
       }))
       .unwrap();
