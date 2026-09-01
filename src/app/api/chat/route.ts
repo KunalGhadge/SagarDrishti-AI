@@ -52,6 +52,7 @@ import { ImageToolName } from "lib/ai/tools";
 import { buildCsvIngestionPreviewParts } from "@/lib/ai/ingest/csv-ingest";
 import { serverFileStorage } from "lib/file-storage";
 import { executeMarineCorePipeline } from "lib/ai/pipeline/marine-pipeline";
+import { isGreetingQuery } from "lib/ai/pipeline/intent-classifier";
 
 const logger = globalLogger.withDefaults({
   message: colorize("blackBright", `Chat API: `),
@@ -278,9 +279,11 @@ export async function POST(request: Request) {
             ?.parts?.map((p: any) => (p.type === "text" ? p.text : ""))
             .join(" ") || "";
 
+        const isGreeting = isGreetingQuery(lastUserMsg);
+
         let marineContext = "";
         try {
-          if (lastUserMsg.trim()) {
+          if (lastUserMsg.trim() && !isGreeting) {
             const marineRes = await executeMarineCorePipeline(lastUserMsg, undefined, userLocation);
             if (marineRes?.groundedPromptContext) {
               marineContext = marineRes.groundedPromptContext;

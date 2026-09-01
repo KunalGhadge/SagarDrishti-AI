@@ -192,6 +192,7 @@ const NonMemoizedMarkdown = ({ children }: { children: string }) => {
     return children
       .replace(/<tool_code>[\s\S]*?<\/tool_code>/gi, "")
       .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
+      .replace(/\{"tool_code"\s*:\s*"[^"]+"\s*,\s*"tool_input"\s*:[\s\S]*?\}\}/gi, "")
       .trim();
   }, [children]);
 

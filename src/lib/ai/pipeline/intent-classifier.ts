@@ -188,3 +188,12 @@ export function classifyIntent(query: string): MarineIntentCategory {
   // Fallback
   return "UNKNOWN";
 }
+
+/**
+ * Checks if a message is a greeting (e.g., "Hi", "Hello", "Hey") so the system
+ * does not dump an unsolicited full weather report.
+ */
+export function isGreetingQuery(query: string): boolean {
+  const q = (query || "").trim().toLowerCase();
+  return /^(hi|hii|hiii|hello|hey|heyy|namaste|kem cho|vanakkam|good\s+(morning|afternoon|evening|day))[\s!.]*$/i.test(q);
+}
