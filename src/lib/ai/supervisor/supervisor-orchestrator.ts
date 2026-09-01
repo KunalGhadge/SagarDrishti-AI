@@ -325,6 +325,8 @@ export function createMarineSupervisorTools(
                   riskIndex: ep.geospatialSafety.imoRiskIndex.value,
                   safetyBadge: ep.geospatialSafety.imoSafetyBadge.value,
                   smallCraftAdvisory: ep.geospatialSafety.smallCraftAdvisory.value,
+                  reasoning: ep.geospatialSafety.riskReasoning.value,
+                  hazardAuditTrail: ep.geospatialSafety.hazardAuditTrail.value,
                 },
                 evidencePack: ep,
               };
@@ -352,6 +354,7 @@ export function createMarineSupervisorTools(
                   thermalGradientDegPer5Km: `${ep.bioOptics.horizontalSstGradientDegPer5Km.value} °C / 5km (${ep.bioOptics.horizontalSstGradientDegPer5Km.status})`,
                   chlorophyllConcentration: `${ep.bioOptics.chlorophyllConcentrationMgM3.value} mg/m³ (${ep.bioOptics.chlorophyllConcentrationMgM3.status})`,
                   isThermalFrontActive: ep.bioOptics.isThermalFrontActive.value,
+                  reasoning: ep.bioOptics.insightReasoning.value,
                 },
                 oceanPhysics: {
                   significantWaveHeight: `${ep.oceanPhysics.significantWaveHeightMeters.value} m (${ep.oceanPhysics.significantWaveHeightMeters.status})`,
@@ -361,6 +364,7 @@ export function createMarineSupervisorTools(
                 safetyAssessment: {
                   riskIndex: ep.geospatialSafety.imoRiskIndex.value,
                   safetyBadge: ep.geospatialSafety.imoSafetyBadge.value,
+                  reasoning: ep.geospatialSafety.riskReasoning.value,
                 },
                 evidencePack: ep,
               };
@@ -389,6 +393,8 @@ export function createMarineSupervisorTools(
                   safetyBadge: ep.geospatialSafety.imoSafetyBadge.value,
                   smallCraftAdvisory: ep.geospatialSafety.smallCraftAdvisory.value,
                   mechanizedVesselAdvisory: ep.geospatialSafety.mechanizedVesselAdvisory.value,
+                  reasoning: ep.geospatialSafety.riskReasoning.value,
+                  hazardAuditTrail: ep.geospatialSafety.hazardAuditTrail.value,
                 },
                 evidencePack: ep,
               };

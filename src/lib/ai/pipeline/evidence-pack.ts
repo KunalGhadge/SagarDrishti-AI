@@ -50,6 +50,7 @@ export interface EvidencePackBioOptics {
   nearestPfzCoordinates: EvidenceField<{ latitude: number; longitude: number } | null>;
   nearestPfzDistanceNM: EvidenceField<number | null>;
   nearestPfzBearing: EvidenceField<string | null>;
+  insightReasoning: EvidenceField<string>;
 }
 
 export interface EvidencePackGeospatialSafety {
@@ -65,6 +66,14 @@ export interface EvidencePackGeospatialSafety {
   portDangerSignalHoisted: EvidenceField<number | null>;
   smallCraftAdvisory: EvidenceField<string>;
   mechanizedVesselAdvisory: EvidenceField<string>;
+  riskReasoning: EvidenceField<string>;
+  hazardAuditTrail: EvidenceField<Array<{
+    hazard: string;
+    rule: string;
+    threshold: string;
+    measured: string;
+    status: string;
+  }>>;
 }
 
 export interface EvidencePack {

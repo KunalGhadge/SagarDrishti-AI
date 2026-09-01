@@ -638,6 +638,11 @@ You MUST output EXACTLY this clarification question and nothing else:
         status: "simulated",
         source: "Forward Azimuth Bearing to Simulated INCOIS Hotspot Point",
       },
+      insightReasoning: {
+        value: insightResult.reasoning,
+        status: "real",
+        source: "INCOIS Physical-Biological Coupling Engine",
+      },
     },
     geospatialSafety: {
       imblBoundaryName: {
@@ -709,10 +714,26 @@ You MUST output EXACTLY this clarification question and nothing else:
         status: "real",
         source: "IMO FSA Operational Decision Matrix",
       },
+      riskReasoning: {
+        value: riskResult.reasoning,
+        status: "real",
+        source: "IMO Formal Safety Assessment Engine",
+      },
+      hazardAuditTrail: {
+        value: riskResult.hazardChecks.map((h) => ({
+          hazard: h.hazardName,
+          rule: h.ruleName,
+          threshold: h.thresholdUsed,
+          measured: h.measuredValue,
+          status: h.status,
+        })),
+        status: "real",
+        source: "IMO FSA & IMD Hazard Identification (HAZID) Matrix",
+      },
     },
     auditSummary: {
-      totalFieldsCount: 28,
-      realFieldsCount: 18,
+      totalFieldsCount: 30,
+      realFieldsCount: 20,
       simulatedFieldsCount: 8,
       unavailableFieldsCount: 2,
       primaryRealApisUsed: ["Open-Meteo Marine Physics REST API", "Open-Meteo Global Weather REST API", "IMO Formal Safety Assessment Engine", "Indian Coastal Coordinate Registry"],
