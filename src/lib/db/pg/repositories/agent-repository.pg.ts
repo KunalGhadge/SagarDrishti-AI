@@ -5,8 +5,61 @@ import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { generateUUID } from "lib/utils";
 import { SAGARDRISHTI_PRESEEDED_AGENTS } from "lib/ai/marine-agents-seed";
 
+export const SLUG_TO_UUID_MAP: Record<string, string> = {
+  "marine-planner-orchestrator": "10000000-0000-4000-8000-000000000001",
+  "weather-cyclone-agent": "10000000-0000-4000-8000-000000000002",
+  "ocean-analytics-agent": "10000000-0000-4000-8000-000000000003",
+  "maritime-safety-agent": "10000000-0000-4000-8000-000000000004",
+  "emergency-sos-agent": "10000000-0000-4000-8000-000000000005",
+  "presentation-synthesis-agent": "10000000-0000-4000-8000-000000000006",
+};
+
+export const UUID_TO_SLUG_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(SLUG_TO_UUID_MAP).map(([slug, uuid]) => [uuid, slug])
+);
+
+function resolveAgentUuid(id: string): string {
+  return SLUG_TO_UUID_MAP[id] || id;
+}
+
+let isSeedingInitialized = false;
+
+async function ensureSeededAgents(): Promise<void> {
+  if (isSeedingInitialized) return;
+  try {
+    const existing = await db.select({ id: AgentTable.id }).from(AgentTable).limit(1);
+    if (existing.length === 0) {
+      const [adminUser] = await db.select({ id: UserTable.id }).from(UserTable).limit(1);
+      const ownerId = adminUser?.id;
+      if (ownerId) {
+        for (const agent of SAGARDRISHTI_PRESEEDED_AGENTS) {
+          const uuid = SLUG_TO_UUID_MAP[agent.id] || generateUUID();
+          await db
+            .insert(AgentTable)
+            .values({
+              id: uuid,
+              name: agent.name,
+              description: agent.description,
+              icon: agent.icon,
+              userId: ownerId,
+              instructions: agent.instructions,
+              visibility: agent.visibility || "public",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .onConflictDoNothing();
+        }
+      }
+    }
+    isSeedingInitialized = true;
+  } catch (err) {
+    console.warn("Failed to auto-seed agents into PostgreSQL:", err);
+  }
+}
+
 export const pgAgentRepository: AgentRepository = {
   async insertAgent(agent) {
+    await ensureSeededAgents();
     const [result] = await db
       .insert(AgentTable)
       .values({
@@ -31,17 +84,10 @@ export const pgAgentRepository: AgentRepository = {
   },
 
   async selectAgentById(id, userId): Promise<Agent | null> {
-    // Check pre-seeded official marine agents first
-    const preseeded = SAGARDRISHTI_PRESEEDED_AGENTS.find((a) => a.id === id);
-    if (preseeded) {
-      return {
-        ...preseeded,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isBookmarked: false,
-      };
-    }
+    await ensureSeededAgents();
+    const resolvedId = resolveAgentUuid(id);
 
+    // Query genuine database record from PostgreSQL AgentTable
     const [result] = await db
       .select({
         id: AgentTable.id,
@@ -66,7 +112,7 @@ export const pgAgentRepository: AgentRepository = {
       )
       .where(
         and(
-          eq(AgentTable.id, id),
+          eq(AgentTable.id, resolvedId),
           or(
             eq(AgentTable.userId, userId), // Own agent
             eq(AgentTable.visibility, "public"), // Public agent
@@ -75,7 +121,20 @@ export const pgAgentRepository: AgentRepository = {
         ),
       );
 
-    if (!result) return null;
+    if (!result) {
+      // Fallback check in preseeded seed array if database is empty/unseeded
+      const fallback = SAGARDRISHTI_PRESEEDED_AGENTS.find((a) => a.id === id || SLUG_TO_UUID_MAP[a.id] === id);
+      if (fallback) {
+        return {
+          ...fallback,
+          id: resolvedId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isBookmarked: false,
+        };
+      }
+      return null;
+    }
 
     return {
       ...result,
@@ -86,8 +145,8 @@ export const pgAgentRepository: AgentRepository = {
     };
   },
 
-
   async selectAgentsByUserId(userId) {
+    await ensureSeededAgents();
     const results = await db
       .select({
         id: AgentTable.id,
@@ -108,7 +167,6 @@ export const pgAgentRepository: AgentRepository = {
       .where(eq(AgentTable.userId, userId))
       .orderBy(desc(AgentTable.createdAt));
 
-    // Map database nulls to undefined and set defaults for owned agents
     return results.map((result) => ({
       ...result,
       description: result.description ?? undefined,
@@ -116,11 +174,14 @@ export const pgAgentRepository: AgentRepository = {
       instructions: result.instructions ?? {},
       userName: result.userName ?? undefined,
       userAvatar: result.userAvatar ?? undefined,
-      isBookmarked: false, // Always false for owned agents
+      isBookmarked: false,
     }));
   },
 
   async updateAgent(id, userId, agent) {
+    await ensureSeededAgents();
+    const resolvedId = resolveAgentUuid(id);
+
     const [result] = await db
       .update(AgentTable)
       .set({
@@ -129,8 +190,7 @@ export const pgAgentRepository: AgentRepository = {
       })
       .where(
         and(
-          // Only allow updates to agents owned by the user or public agents
-          eq(AgentTable.id, id),
+          eq(AgentTable.id, resolvedId),
           or(
             eq(AgentTable.userId, userId),
             eq(AgentTable.visibility, "public"),
@@ -138,6 +198,10 @@ export const pgAgentRepository: AgentRepository = {
         ),
       )
       .returning();
+
+    if (!result) {
+      throw new Error(`Agent ${id} not found in database or update not permitted`);
+    }
 
     return {
       ...result,
@@ -148,9 +212,11 @@ export const pgAgentRepository: AgentRepository = {
   },
 
   async deleteAgent(id, userId) {
+    await ensureSeededAgents();
+    const resolvedId = resolveAgentUuid(id);
     await db
       .delete(AgentTable)
-      .where(and(eq(AgentTable.id, id), eq(AgentTable.userId, userId)));
+      .where(and(eq(AgentTable.id, resolvedId), eq(AgentTable.userId, userId)));
   },
 
   async selectAgents(
@@ -158,9 +224,9 @@ export const pgAgentRepository: AgentRepository = {
     filters = ["all"],
     limit = 50,
   ): Promise<AgentSummary[]> {
+    await ensureSeededAgents();
     let orConditions: any[] = [];
 
-    // Build OR conditions based on filters array
     for (const filter of filters) {
       if (filter === "mine") {
         orConditions.push(eq(AgentTable.userId, currentUserId));
@@ -186,12 +252,9 @@ export const pgAgentRepository: AgentRepository = {
           ),
         );
       } else if (filter === "all") {
-        // All available agents (mine + shared) - this overrides other filters
         orConditions = [
           or(
-            // My agents
             eq(AgentTable.userId, currentUserId),
-            // Shared agents
             and(
               ne(AgentTable.userId, currentUserId),
               or(
@@ -201,7 +264,7 @@ export const pgAgentRepository: AgentRepository = {
             ),
           ),
         ];
-        break; // "all" overrides everything else
+        break;
       }
     }
 
@@ -212,7 +275,6 @@ export const pgAgentRepository: AgentRepository = {
         description: AgentTable.description,
         icon: AgentTable.icon,
         userId: AgentTable.userId,
-        // Exclude instructions from list queries for performance
         visibility: AgentTable.visibility,
         createdAt: AgentTable.createdAt,
         updatedAt: AgentTable.updatedAt,
@@ -226,56 +288,29 @@ export const pgAgentRepository: AgentRepository = {
         BookmarkTable,
         and(
           eq(BookmarkTable.itemId, AgentTable.id),
-          eq(BookmarkTable.itemType, "agent"),
           eq(BookmarkTable.userId, currentUserId),
+          eq(BookmarkTable.itemType, "agent"),
         ),
       )
       .where(orConditions.length > 1 ? or(...orConditions) : orConditions[0])
       .orderBy(
-        // My agents first, then other shared agents
         sql`CASE WHEN ${AgentTable.userId} = ${currentUserId} THEN 0 ELSE 1 END`,
         desc(AgentTable.createdAt),
       )
       .limit(limit);
 
-    // Map database nulls to undefined
-    const dbAgents = results.map((result) => ({
+    return results.map((result) => ({
       ...result,
       description: result.description ?? undefined,
       icon: result.icon ?? undefined,
       userName: result.userName ?? undefined,
       userAvatar: result.userAvatar ?? undefined,
     }));
-
-    const preseededSummaries: AgentSummary[] = SAGARDRISHTI_PRESEEDED_AGENTS.map((a) => ({
-      id: a.id,
-      name: a.name,
-      description: a.description,
-      icon: a.icon,
-      userId: a.userId,
-      visibility: a.visibility,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      userName: "SagarDrishti System",
-      isBookmarked: false,
-    }));
-
-    const existingIds = new Set(dbAgents.map((a) => a.id));
-    const merged = [
-      ...preseededSummaries.filter((p) => !existingIds.has(p.id)),
-      ...dbAgents,
-    ];
-
-    return merged.slice(0, limit);
   },
 
-
   async checkAccess(agentId, userId, destructive = false) {
-    const isPreseeded = SAGARDRISHTI_PRESEEDED_AGENTS.some((a) => a.id === agentId);
-    if (isPreseeded) {
-      if (destructive) return false;
-      return true;
-    }
+    await ensureSeededAgents();
+    const resolvedId = resolveAgentUuid(agentId);
 
     const [agent] = await db
       .select({
@@ -283,14 +318,14 @@ export const pgAgentRepository: AgentRepository = {
         userId: AgentTable.userId,
       })
       .from(AgentTable)
-      .where(eq(AgentTable.id, agentId));
+      .where(eq(AgentTable.id, resolvedId));
+
     if (!agent) {
       return false;
     }
-    if (userId == agent.userId) return true;
+    if (userId === agent.userId) return true;
     if (agent.visibility === "public" && !destructive) return true;
     if (agent.visibility === "readonly" && !destructive) return true;
     return false;
   },
 };
-

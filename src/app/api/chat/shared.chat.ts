@@ -438,10 +438,11 @@ export const loadAppDefaultTools = (opt?: {
   allowedAppDefaultToolkit?: string[];
   dataStream?: UIMessageStreamWriter;
   userLocation?: { latitude: number; longitude: number; accuracy?: number };
+  agents?: any[];
 }) =>
   safe(APP_DEFAULT_TOOL_KIT)
     .map((tools) => {
-      const supervisorTools = createMarineSupervisorTools(opt?.dataStream, opt?.userLocation);
+      const supervisorTools = createMarineSupervisorTools(opt?.dataStream, opt?.userLocation, opt?.agents);
       if (opt?.mentions?.length) {
         const defaultToolMentions = opt.mentions.filter(
           (m) => m.type == "defaultTool",

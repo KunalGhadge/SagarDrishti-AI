@@ -225,6 +225,8 @@ export async function POST(request: Request) {
           )
           .orElse({});
 
+        const dbAgents = await agentRepository.selectAgents(session.user.id, ["all"], 50).catch(() => []);
+
         const APP_DEFAULT_TOOLS = await safe()
           .map(errorIf(() => !isToolCallAllowed && "Not allowed"))
           .map(() =>
@@ -233,6 +235,7 @@ export async function POST(request: Request) {
               allowedAppDefaultToolkit,
               dataStream,
               userLocation,
+              agents: dbAgents,
             }),
           )
           .orElse({});
