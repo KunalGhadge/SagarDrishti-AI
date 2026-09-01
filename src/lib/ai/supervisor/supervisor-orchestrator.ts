@@ -429,6 +429,57 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
                     },
                   ],
                 };
+              } else if (pipelineResult.intent === "ALERT_CHECK") {
+                const hasExactUserCoords =
+                  ep.location.latitude.source.includes("User Device GPS") ||
+                  ep.location.latitude.source.includes("Parsed Numeric GPS");
+
+                const coastalZone =
+                  Object.values(INDIAN_COASTAL_ZONES).find(
+                    (z) => z.harbor === ep.location.harbor.value || z.name === ep.location.coastalZone.value
+                  ) || INDIAN_COASTAL_ZONES.mumbai;
+
+                if (hasExactUserCoords) {
+                  // User provided exact coordinates -> show distress pin + safe harbor pin + direct bearing line
+                  mapView = {
+                    title: `Emergency Safe Harbor Direct Bearing - ${ep.location.coastalZone.value}`,
+                    markers: [
+                      {
+                        lat: ep.location.latitude.value,
+                        lon: ep.location.longitude.value,
+                        label: `Vessel Distress Position (${ep.location.latitude.value.toFixed(4)}°N, ${ep.location.longitude.value.toFixed(4)}°E)`,
+                        type: "hazard" as const,
+                        isSimulated: false,
+                      },
+                      {
+                        lat: coastalZone.latitude,
+                        lon: coastalZone.longitude,
+                        label: `Nearest Safe Harbor: ${ep.location.harbor.value}`,
+                        type: "safe_zone" as const,
+                        isSimulated: false,
+                      },
+                    ],
+                    path: [
+                      { lat: ep.location.latitude.value, lon: ep.location.longitude.value },
+                      { lat: coastalZone.latitude, lon: coastalZone.longitude },
+                    ],
+                    pathLabel: "Direct Bearing (Straight Line — Not a Navigation Route)",
+                  };
+                } else {
+                  // Place name matched registry only (no vessel coordinates provided) -> show harbor pin ONLY, no fake pin and no fake line
+                  mapView = {
+                    title: `Safe Harbor Registry Location - ${ep.location.coastalZone.value}`,
+                    markers: [
+                      {
+                        lat: coastalZone.latitude,
+                        lon: coastalZone.longitude,
+                        label: `Nearest Safe Harbor: ${ep.location.harbor.value}`,
+                        type: "safe_zone" as const,
+                        isSimulated: false,
+                      },
+                    ],
+                  };
+                }
               }
 
               agentOutput = {

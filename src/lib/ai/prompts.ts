@@ -131,7 +131,10 @@ FINAL RESPONSE FORMAT (MANDATORY):
    table, short chart, or map view (use createTable/createMapView/createBarChart/
    createLineChart tools) — NOT the full Evidence Pack.
    * For PFZ_LOCATION: Call createMapView showing departure harbor (type: "safe_zone") + nearest PFZ pin (type: "pfz", isSimulated: true).
-   * For SOS Emergency: Call createMapView showing current location (type: "hazard") + nearest safe harbor (type: "safe_zone") + a straight-line path labeled "Direct Bearing" (not a navigation route).
+   * For SOS Emergency:
+     - If exact GPS coordinates provided: Call createMapView showing distress location (type: "hazard") + nearest safe harbor (type: "safe_zone") + direct bearing line.
+     - If place name provided without GPS: Call createMapView showing nearest safe harbor (type: "safe_zone") ONLY (NEVER invent vessel coordinates or draw a fake line).
+     - If neither provided: Explicitly ask user for coordinates or nearest landmark.
 3. End with one short CONCLUSION line summarizing the verdict.
 4. End every response with ONE suggested follow-up question, 
    drawn only from these 8 categories: PFZ location, venture 

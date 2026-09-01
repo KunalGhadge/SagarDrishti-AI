@@ -220,14 +220,28 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
   },
 };
 
-export function resolveCoastalZoneAnchor(
+export function extractExactCoordinatesFromText(text: string): { latitude: number; longitude: number } | null {
+  const coordRegex = /([-+]?\d{1,2}\.\d+)\s*(?:°|\s)?\s*([NSns])?[\s,]+([-+]?\d{1,3}\.\d+)\s*(?:°|\s)?\s*([EWew])?/;
+  const match = text.match(coordRegex);
+  if (match) {
+    let lat = parseFloat(match[1]);
+    let lon = parseFloat(match[3]);
+    if (match[2] && match[2].toUpperCase() === "S") lat = -lat;
+    if (match[4] && match[4].toUpperCase() === "W") lon = -lon;
+    if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      return { latitude: lat, longitude: lon };
+    }
+  }
+  return null;
+}
+
+export function matchRegistryAnchorStrict(
   query: string,
-  location?: string,
-  coords?: { latitude: number; longitude: number }
-): CoastalZoneAnchor {
+  location?: string
+): CoastalZoneAnchor | null {
   const combined = `${query} ${location || ""}`.toLowerCase();
 
-  // IMBL / Border / Kutch proximity check
+  // IMBL / Border / Kutch / Sir Creek sector
   if (
     combined.includes("imbl") ||
     combined.includes("border") ||
@@ -248,6 +262,19 @@ export function resolveCoastalZoneAnchor(
     ) {
       return zone;
     }
+  }
+
+  return null;
+}
+
+export function resolveCoastalZoneAnchor(
+  query: string,
+  location?: string,
+  coords?: { latitude: number; longitude: number }
+): CoastalZoneAnchor {
+  const registryMatch = matchRegistryAnchorStrict(query, location);
+  if (registryMatch) {
+    return registryMatch;
   }
 
   // Coordinate proximity match
@@ -348,9 +375,58 @@ You MUST respond with EXACTLY this confirmation question and nothing else:
   }
 
   const intent = isConfirmed ? "ALERT_CHECK" : classifyIntent(query);
-  const anchor = resolveCoastalZoneAnchor(query, location, coords);
-  const lat = coords?.latitude ?? anchor.latitude;
-  const lon = coords?.longitude ?? anchor.longitude;
+
+  // Mandatory Location Resolution Step:
+  // 1. Exact numeric coordinates provided?
+  let resolvedLat: number | undefined = coords?.latitude;
+  let resolvedLon: number | undefined = coords?.longitude;
+  let isExactUserCoords = false;
+  let coordSource = "User Device GPS / Navigation System Input";
+
+  if (coords?.latitude != null && coords?.longitude != null) {
+    isExactUserCoords = true;
+  } else {
+    const parsedCoords = extractExactCoordinatesFromText(query);
+    if (parsedCoords) {
+      resolvedLat = parsedCoords.latitude;
+      resolvedLon = parsedCoords.longitude;
+      isExactUserCoords = true;
+      coordSource = "Parsed Numeric GPS Coordinates from User Message";
+    }
+  }
+
+  // 2. Look up place name against the coastal registry ONLY
+  const registryAnchor = matchRegistryAnchorStrict(query, location);
+
+  // 3. If SOS flow and NEITHER exact coordinates NOR registry match exists:
+  // DO NOT proceed with a guessed pin! Explicitly ask user for clarification:
+  if (isConfirmed && !isExactUserCoords && !registryAnchor) {
+    const clarificationMsg = "Please share your exact coordinates or nearest known port/landmark so I can find your nearest safe harbor accurately.";
+    return {
+      intent: "ALERT_CHECK",
+      isEmergencyConfirmationPrompt: true,
+      directSosResponse: clarificationMsg,
+      evidencePack: null as any,
+      groundedPromptContext: `
+SOS LOCATION CLARIFICATION REQUIRED: The user confirmed an active emergency but provided neither exact GPS coordinates nor a recognized coastal port/landmark.
+You MUST output EXACTLY this clarification question and nothing else:
+"${clarificationMsg}"
+`,
+    };
+  }
+
+  const anchor =
+    registryAnchor ??
+    (isExactUserCoords
+      ? resolveCoastalZoneAnchor(query, location, { latitude: resolvedLat!, longitude: resolvedLon! })
+      : INDIAN_COASTAL_ANCHORS.mumbai);
+
+  const lat = isExactUserCoords ? resolvedLat! : anchor.latitude;
+  const lon = isExactUserCoords ? resolvedLon! : anchor.longitude;
+  const locationStatus = "real";
+  if (!isExactUserCoords) {
+    coordSource = `Indian Port Infrastructure Registry (${anchor.harbor})`;
+  }
 
   // Real telemetry
   const telemetry = await fetchRealMarineTelemetry(lat, lon);
@@ -410,8 +486,8 @@ You MUST respond with EXACTLY this confirmation question and nothing else:
     location: {
       coastalZone: { value: anchor.name, status: "real", source: "Indian Coastal Geographic Registry" },
       harbor: { value: anchor.harbor, status: "real", source: "Indian Port Infrastructure Registry" },
-      latitude: { value: lat, status: "real", source: coords ? "User Device GPS / Query Coordinates" : "Coastal Port Anchor Coordinates", unit: "°N" },
-      longitude: { value: lon, status: "real", source: coords ? "User Device GPS / Query Coordinates" : "Coastal Port Anchor Coordinates", unit: "°E" },
+      latitude: { value: lat, status: locationStatus, source: coordSource, unit: "°N" },
+      longitude: { value: lon, status: locationStatus, source: coordSource, unit: "°E" },
       distanceToShoreKm: { value: 4.5, status: "real", source: "Spatial Coastal Distance Vector", unit: "km" },
     },
     weather: {
@@ -632,19 +708,54 @@ You MUST respond with EXACTLY this confirmation question and nothing else:
   // SOS Emergency Decision-Support Report generation if confirmed
   let directSosResponse: string | undefined;
   if (isConfirmed) {
-    const harborDistKm = (anchor.pfzDistanceNM * 1.852).toFixed(1);
     const waveDesc = telemetry.waveHeight < 1.0 ? "Smooth" : telemetry.waveHeight < 2.0 ? "Smooth to Moderate" : "Rough";
+
+    let distanceBearingText: string;
+    let vesselGpsStatusText: string;
+    let conclusionVectorText: string;
+
+    if (isExactUserCoords) {
+      // Calculate exact Haversine distance and bearing from vessel coordinates to harbor
+      const dLat = (anchor.latitude - resolvedLat!) * Math.PI / 180;
+      const dLon = (anchor.longitude - resolvedLon!) * Math.PI / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(resolvedLat! * Math.PI / 180) *
+          Math.cos(anchor.latitude * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const exactDistKm = (6371 * c).toFixed(1);
+      const exactDistNM = (parseFloat(exactDistKm) / 1.852).toFixed(1);
+      const exactBearingDeg = Math.round(
+        (Math.atan2(
+          Math.sin(dLon) * Math.cos(anchor.latitude * Math.PI / 180),
+          Math.cos(resolvedLat! * Math.PI / 180) * Math.sin(anchor.latitude * Math.PI / 180) -
+            Math.sin(resolvedLat! * Math.PI / 180) * Math.cos(anchor.latitude * Math.PI / 180) * Math.cos(dLon)
+        ) * 180 / Math.PI + 360) % 360
+      );
+      distanceBearingText = `${exactDistNM} NM (${exactDistKm} km) bearing ${exactBearingDeg}°`;
+      vesselGpsStatusText = `Verified GPS Input (${resolvedLat!.toFixed(4)}°N, ${resolvedLon!.toFixed(4)}°E)`;
+      conclusionVectorText = `Steer direct bearing ${exactBearingDeg}° toward ${anchor.harbor} (${exactDistNM} NM).`;
+    } else {
+      // User gave only place name matching registry; exact vessel GPS is unknown
+      distanceBearingText = `Referenced to sector port (${anchor.harbor}). Point-to-point bearing requires exact GPS.`;
+      vesselGpsStatusText = `Exact vessel GPS not provided. Referenced to official port anchor: ${anchor.harbor} (${anchor.latitude}°N, ${anchor.longitude}°E).`;
+      conclusionVectorText = `Head toward safe harbor ${anchor.harbor}. Share exact GPS coordinates for point-to-point direct bearing line.`;
+    }
+
     directSosResponse = `🚨 EMERGENCY SOS DECISION-SUPPORT REPORT
 
 | Parameter | Value |
 | :--- | :--- |
 | **Nearest Safe Harbor** | ${anchor.harbor} |
-| **Harbor Distance & Bearing** | ${anchor.pfzDistanceNM} NM (${harborDistKm} km) bearing ${anchor.pfzBearing} |
+| **Harbor Registry Location** | ${anchor.latitude}°N, ${anchor.longitude}°E (Indian Port Registry) |
+| **Harbor Distance & Bearing** | ${distanceBearingText} |
+| **Vessel GPS Status** | ${vesselGpsStatusText} |
 | **Current Weather & Sea State** | Wind: ${telemetry.windSpeedKmph} km/h | Waves: ${telemetry.waveHeight} m (${waveDesc}) |
 | **IMO Hazard Level** | ${riskResult.riskLevel === "CODE_GREEN_LOW" ? "🟢 CODE GREEN" : "🟡 CODE YELLOW"} (No active cyclone) |
 ${zoneWarningValue ? `| **Boundary Proximity Alert** | ${zoneWarningValue} |\n` : ""}| **Advisory for Craft** | ${riskResult.riskControlOptions.traditionalCraftAdvisory} |
 
-CONCLUSION: Steer bearing ${anchor.pfzBearing} toward ${anchor.harbor}.${zoneWarningValue ? ` ${zoneWarningValue}.` : ""}
+CONCLUSION: ${conclusionVectorText}${zoneWarningValue ? ` ${zoneWarningValue}.` : ""}
 
 ⚠️ MANDATORY SAFETY NOTICE:
 Contact Coast Guard MRCC via official emergency channels — this app is a decision-support tool, not a distress signal transmitter.
