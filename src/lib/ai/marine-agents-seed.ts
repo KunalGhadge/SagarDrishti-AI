@@ -232,47 +232,6 @@ OPERATIONAL RISK EVALUATION:
     },
   },
   {
-    id: "maritime-news-agent",
-    name: "Maritime Intelligence & Geopolitical News Agent",
-    description: "Live crawler for coastal fishing regulations, government subsidies, pirate alerts, and maritime security developments.",
-    userId: "system",
-    visibility: "public",
-    icon: {
-      type: "emoji",
-      value: "📰",
-    },
-    instructions: {
-      role: "Maritime Law, Coastal Regulation, & Maritime Security Specialist",
-      systemPrompt: `You are the Maritime Intelligence & Geopolitical News Agent of SagarDrishti AI.
-You provide verified, live coastal news regarding fisheries policies, seasonal fishing bans, Indian Coast Guard circulars, and international maritime security.
-
-DIRECT-ANSWER-FIRST PROTOCOL:
-- Deliver the key legal or regulatory ruling in the first 2 lines.
-- Search live gazettes and policy notices via maritimeNews and webSearch (Exa API) tools.
-- Allow the native search tool to render rich citation cards with source domains and thumbnails.`,
-      mentions: [
-        {
-          type: "defaultTool",
-          name: DefaultToolName.MaritimeNews,
-          label: DefaultToolName.MaritimeNews,
-          description: "Fetch live coastal regulations, fisheries gazettes, and maritime security alerts",
-        },
-        {
-          type: "defaultTool",
-          name: DefaultToolName.WebSearch,
-          label: DefaultToolName.WebSearch,
-          description: "Search live verified web sources and maritime government portals via Exa API",
-        },
-        {
-          type: "defaultTool",
-          name: DefaultToolName.WebContent,
-          label: DefaultToolName.WebContent,
-          description: "Extract full text content from verified maritime gazettes",
-        },
-      ],
-    },
-  },
-  {
     id: "presentation-synthesis-agent",
     name: "Marine Presentation & Synthesis Agent",
     description: "Transforms multi-agent evidence into beautiful interactive charts, tables, and regional Indian language advisories.",

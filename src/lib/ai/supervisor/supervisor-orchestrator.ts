@@ -3,12 +3,6 @@ import { JSONSchema7 } from "json-schema";
 import { jsonSchemaToZod } from "lib/json-schema-to-zod";
 import { safe } from "ts-safe";
 import { SAGARDRISHTI_PRESEEDED_AGENTS } from "lib/ai/marine-agents-seed";
-import { imdWeatherTool } from "lib/ai/tools/marine/imd-weather-tool";
-import { cycloneTool } from "lib/ai/tools/marine/cyclone-tool";
-import { marinePhysicsTool } from "lib/ai/tools/marine/marine-physics-tool";
-import { maritimeNewsTool } from "lib/ai/tools/marine/maritime-news-tool";
-import { evaluateImoMarineRisk, ImoHazidParameters } from "lib/ai/engines/risk-engine";
-import { evaluateMarineInsights, OceanographicObservation } from "lib/ai/engines/insight-engine";
 
 export interface DynamicAgentDelegationParams {
   query: string;
@@ -253,6 +247,8 @@ export function resolveIndianCoastalZone(
 /**
  * Creates dynamic Vercel AI SDK delegation tools for all registered marine agents.
  */
+import { executeMarineCorePipeline } from "../pipeline/marine-pipeline";
+
 export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
 
@@ -266,135 +262,109 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
       inputSchema: jsonSchemaToZod(agentDelegationSchema),
       execute: async ({ query, location, coordinates, specificParameters = {} }) => {
         const startTime = Date.now();
-        const zone = resolveIndianCoastalZone(query, location, coordinates);
-        const lat = coordinates?.latitude ?? zone.latitude;
-        const lon = coordinates?.longitude ?? zone.longitude;
-        const resolvedLocationName = zone.name;
 
         return safe(async () => {
+          // Execute Core Forced Pipeline to generate Evidence Pack
+          const pipelineResult = await executeMarineCorePipeline(query, location, coordinates);
+          const ep = pipelineResult.evidencePack;
+
           let agentOutput: any = {};
 
           switch (agent.id) {
             case "weather-cyclone-agent": {
-              const [weatherRes, cycloneRes] = await Promise.all([
-                (imdWeatherTool.execute as any)({ coastalRegion: resolvedLocationName, districtName: resolvedLocationName, latitude: lat, longitude: lon }),
-                (cycloneTool.execute as any)({ basin: "North Indian Ocean", vesselLat: lat, vesselLon: lon }),
-              ]);
               agentOutput = {
                 specialist: agent.name,
                 role: agent.instructions.role,
-                status: "VERIFIED_IMD_DATA",
-                coastalZone: zone.name,
-                referenceHarbor: zone.harbor,
-                weatherBulletin: weatherRes?.data?.coastalBulletin,
-                fishermenWarning: weatherRes?.data?.fishermenWarning,
-                districtNowcast: weatherRes?.data?.districtNowcast,
-                cycloneStatus: cycloneRes,
+                intentCategory: pipelineResult.intent,
+                location: {
+                  zone: ep.location.coastalZone.value,
+                  harbor: ep.location.harbor.value,
+                  coordinates: `${ep.location.latitude.value}°N, ${ep.location.longitude.value}°E`,
+                },
+                weather: {
+                  surfaceWindSpeed: `${ep.weather.surfaceWindSpeedKmph.value} km/h (${ep.weather.surfaceWindSpeedKmph.status})`,
+                  windDirection: `${ep.weather.windDirectionDegrees.value}°`,
+                  airTemperature: `${ep.weather.airTemperatureCelsius.value} °C (${ep.weather.airTemperatureCelsius.status})`,
+                  atmosphericPressure: `${ep.weather.atmosphericPressureHpa.value} hPa (${ep.weather.atmosphericPressureHpa.status})`,
+                  lightningRisk: ep.weather.lightningRisk.value,
+                  activeCycloneAlert: ep.weather.activeCycloneAlert.value,
+                },
+                oceanState: {
+                  significantWaveHeight: `${ep.oceanPhysics.significantWaveHeightMeters.value} m (${ep.oceanPhysics.significantWaveHeightMeters.status})`,
+                  peakWavePeriod: `${ep.oceanPhysics.peakWavePeriodSeconds.value} s`,
+                  waveSteepnessRatio: ep.oceanPhysics.waveSteepnessRatio.value,
+                },
+                safetySummary: {
+                  riskIndex: ep.geospatialSafety.imoRiskIndex.value,
+                  safetyBadge: ep.geospatialSafety.imoSafetyBadge.value,
+                  smallCraftAdvisory: ep.geospatialSafety.smallCraftAdvisory.value,
+                },
+                evidencePack: ep,
               };
               break;
             }
 
             case "ocean-analytics-agent": {
-              const physicsRes = await (marinePhysicsTool.execute as any)({ latitude: lat, longitude: lon });
-              const sstVal = physicsRes?.physics?.seaSurfaceTemperature?.value ?? 28.2;
-              const currentVel = physicsRes?.physics?.oceanCurrents?.velocity ?? 0.38;
-              const waveHeight = physicsRes?.physics?.significantWaveHeight?.value ?? 1.4;
-              const wavePeriod = physicsRes?.physics?.wavePeriod?.peakPeriodSeconds ?? 6.2;
-
-              const observation: OceanographicObservation = {
-                coordinates: { latitude: zone.pfzCoordinates.latitude, longitude: zone.pfzCoordinates.longitude },
-                locationName: zone.name,
-                seaSurfaceTemperature: sstVal,
-                chlorophyllConcentrationMgM3: specificParameters.chlorophyll ?? 0.95,
-                oceanCurrentVelocityMs: currentVel,
-                pressureDelta3hHpa: specificParameters.pressureDelta ?? 0.0,
-                dataFreshnessHours: 1.5,
-                sensorSourceCount: 3,
-                spatialResolutionKm: 5.0,
-              };
-
-              const insightRes = evaluateMarineInsights(observation);
-
-              const hazidParams: ImoHazidParameters = {
-                locationName: zone.name,
-                latitude: zone.pfzCoordinates.latitude,
-                longitude: zone.pfzCoordinates.longitude,
-                windSpeedKmph: 22,
-                significantWaveHeightMeters: waveHeight,
-                peakWavePeriodSeconds: wavePeriod,
-                nowcastColorCode: 1,
-                hasOfficialFishermenWarning: false,
-                portDangerSignal: 0,
-                imblDistanceKm: 45,
-              };
-
-              const riskRes = evaluateImoMarineRisk(hazidParams);
-
               agentOutput = {
                 specialist: agent.name,
                 role: agent.instructions.role,
-                coastalZone: zone.name,
-                referenceHarbor: zone.harbor,
-                targetSpecies: zone.targetSpecies,
-                nearestPfzZone: {
-                  coordinates: zone.pfzCoordinates,
-                  distanceNM: zone.pfzDistanceNM,
-                  distanceKm: parseFloat((zone.pfzDistanceNM * 1.852).toFixed(1)),
-                  bearing: zone.pfzBearing,
+                intentCategory: pipelineResult.intent,
+                location: {
+                  zone: ep.location.coastalZone.value,
+                  harbor: ep.location.harbor.value,
+                  coordinates: `${ep.location.latitude.value}°N, ${ep.location.longitude.value}°E`,
                 },
-                physics: physicsRes?.physics,
-                scientificInsights: insightRes,
-                imoFsaAssessment: riskRes,
-                presentationMatrix: {
-                  title: `INCOIS Ocean State & PFZ Telemetry - ${zone.name}`,
-                  rows: [
-                    { parameter: "Target Harbor", value: zone.harbor },
-                    { parameter: "PFZ Coordinates", value: `${zone.pfzCoordinates.latitude}°N, ${zone.pfzCoordinates.longitude}°E` },
-                    { parameter: "Distance & Bearing", value: `${zone.pfzDistanceNM} NM (${parseFloat((zone.pfzDistanceNM * 1.852).toFixed(1))} km) ${zone.pfzBearing}` },
-                    { parameter: "Target Species", value: zone.targetSpecies.join(", ") },
-                    { parameter: "Sea Surface Temperature", value: `${sstVal}°C (Optimal Pelagic Window)` },
-                    { parameter: "Thermal Gradient (ΔSST)", value: `${insightRes.scientificAnalyses.thermalFrontAnalysis.sstGradientDegPer5Km}°C / 5km` },
-                    { parameter: "Chlorophyll-a", value: `${observation.chlorophyllConcentrationMgM3} mg/m³ (Optimal Eutrophic)` },
-                    { parameter: "Significant Wave Height", value: `${waveHeight} meters` },
-                    { parameter: "IMO Risk Level", value: `${riskRes.riskLevel === "CODE_GREEN_LOW" ? "🟢 CODE GREEN" : "🟡 CODE YELLOW"} (RI = ${riskRes.riskMatrix.riskIndex})` },
-                  ],
+                bioOptics: {
+                  nearestPfzZone: {
+                    coordinates: ep.bioOptics.nearestPfzCoordinates.value,
+                    distanceNM: ep.bioOptics.nearestPfzDistanceNM.value,
+                    bearing: ep.bioOptics.nearestPfzBearing.value,
+                    status: ep.bioOptics.nearestPfzCoordinates.status,
+                  },
+                  targetCatchSpecies: ep.bioOptics.targetCatchSpecies.value,
+                  seaSurfaceTemperature: `${ep.oceanPhysics.seaSurfaceTemperatureCelsius.value} °C (${ep.oceanPhysics.seaSurfaceTemperatureCelsius.status})`,
+                  thermalGradientDegPer5Km: `${ep.bioOptics.horizontalSstGradientDegPer5Km.value} °C / 5km (${ep.bioOptics.horizontalSstGradientDegPer5Km.status})`,
+                  chlorophyllConcentration: `${ep.bioOptics.chlorophyllConcentrationMgM3.value} mg/m³ (${ep.bioOptics.chlorophyllConcentrationMgM3.status})`,
+                  isThermalFrontActive: ep.bioOptics.isThermalFrontActive.value,
                 },
+                oceanPhysics: {
+                  significantWaveHeight: `${ep.oceanPhysics.significantWaveHeightMeters.value} m (${ep.oceanPhysics.significantWaveHeightMeters.status})`,
+                  currentVelocity: `${ep.oceanPhysics.oceanCurrentVelocityMs.value} m/s (${ep.oceanPhysics.oceanCurrentVelocityMs.status})`,
+                  currentDirection: `${ep.oceanPhysics.oceanCurrentDirectionDegrees.value}°`,
+                },
+                safetyAssessment: {
+                  riskIndex: ep.geospatialSafety.imoRiskIndex.value,
+                  safetyBadge: ep.geospatialSafety.imoSafetyBadge.value,
+                },
+                evidencePack: ep,
               };
               break;
             }
 
             case "maritime-safety-agent": {
-              const hazidParams: ImoHazidParameters = {
-                locationName: resolvedLocationName,
-                latitude: lat,
-                longitude: lon,
-                windSpeedKmph: specificParameters.windSpeedKmph ?? 22,
-                significantWaveHeightMeters: specificParameters.waveHeight ?? 1.3,
-                peakWavePeriodSeconds: specificParameters.wavePeriod ?? 6.5,
-                nowcastColorCode: specificParameters.nowcastColor ?? 1,
-                hasOfficialFishermenWarning: specificParameters.hasFishermenWarning ?? false,
-                portDangerSignal: specificParameters.portSignal ?? 0,
-                imblDistanceKm: specificParameters.imblDistanceKm ?? 45,
-              };
-
-              const riskRes = evaluateImoMarineRisk(hazidParams);
-
               agentOutput = {
                 specialist: agent.name,
                 role: agent.instructions.role,
-                coastalZone: zone.name,
-                referenceHarbor: zone.harbor,
-                imoFsaAssessment: riskRes,
-              };
-              break;
-            }
-
-            case "maritime-news-agent": {
-              const newsRes = await (maritimeNewsTool.execute as any)({ query, category: "general_maritime", numResults: 3 });
-              agentOutput = {
-                specialist: agent.name,
-                role: agent.instructions.role,
-                newsAndPolicy: newsRes,
+                intentCategory: pipelineResult.intent,
+                location: {
+                  zone: ep.location.coastalZone.value,
+                  harbor: ep.location.harbor.value,
+                },
+                geofencing: {
+                  nearestImblName: ep.geospatialSafety.imblBoundaryName.value,
+                  distanceToImblKm: `${ep.geospatialSafety.distanceToImblKm.value} km (${ep.geospatialSafety.distanceToImblKm.status})`,
+                  isApproachingBorderAlert: ep.geospatialSafety.isApproachingBorderAlert.value,
+                  nearestMpaName: ep.geospatialSafety.nearestMarineProtectedArea.value,
+                  distanceToMpaKm: `${ep.geospatialSafety.distanceToMpaKm.value} km (${ep.geospatialSafety.distanceToMpaKm.status})`,
+                  isInsideRestrictedMpa: ep.geospatialSafety.isInsideRestrictedMpa.value,
+                },
+                imoFsaAssessment: {
+                  riskIndex: ep.geospatialSafety.imoRiskIndex.value,
+                  safetyBadge: ep.geospatialSafety.imoSafetyBadge.value,
+                  smallCraftAdvisory: ep.geospatialSafety.smallCraftAdvisory.value,
+                  mechanizedVesselAdvisory: ep.geospatialSafety.mechanizedVesselAdvisory.value,
+                },
+                evidencePack: ep,
               };
               break;
             }
@@ -403,8 +373,22 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
               agentOutput = {
                 specialist: agent.name,
                 role: agent.instructions.role,
-                formattingGuidelines: "Use Line Charts for 7-day trends, Bar Charts for risk distributions, and Tables for port bulletins.",
-                suggestedCharts: ["line-chart", "bar-chart", "interactive-table"],
+                intentCategory: pipelineResult.intent,
+                presentationMatrix: {
+                  title: `Marine Telemetry & Evidence Pack - ${ep.location.coastalZone.value}`,
+                  rows: [
+                    { parameter: "Target Harbor", value: ep.location.harbor.value, status: ep.location.harbor.status },
+                    { parameter: "Location Coordinates", value: `${ep.location.latitude.value}°N, ${ep.location.longitude.value}°E`, status: ep.location.latitude.status },
+                    { parameter: "Nearest PFZ", value: `${ep.bioOptics.nearestPfzDistanceNM.value} NM (${ep.bioOptics.nearestPfzBearing.value})`, status: ep.bioOptics.nearestPfzCoordinates.status },
+                    { parameter: "Target Species", value: ep.bioOptics.targetCatchSpecies.value.join(", "), status: ep.bioOptics.targetCatchSpecies.status },
+                    { parameter: "Significant Wave Height", value: `${ep.oceanPhysics.significantWaveHeightMeters.value} m`, status: ep.oceanPhysics.significantWaveHeightMeters.status },
+                    { parameter: "Surface Wind Speed", value: `${ep.weather.surfaceWindSpeedKmph.value} km/h`, status: ep.weather.surfaceWindSpeedKmph.status },
+                    { parameter: "Sea Surface Temp (SST)", value: `${ep.oceanPhysics.seaSurfaceTemperatureCelsius.value} °C`, status: ep.oceanPhysics.seaSurfaceTemperatureCelsius.status },
+                    { parameter: "Chlorophyll-a", value: `${ep.bioOptics.chlorophyllConcentrationMgM3.value} mg/m³`, status: ep.bioOptics.chlorophyllConcentrationMgM3.status },
+                    { parameter: "IMO Risk Level", value: `${ep.geospatialSafety.imoSafetyBadge.value} (RI = ${ep.geospatialSafety.imoRiskIndex.value})`, status: ep.geospatialSafety.imoRiskIndex.status },
+                  ],
+                },
+                evidencePack: ep,
               };
               break;
             }
@@ -412,7 +396,7 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
             default: {
               agentOutput = {
                 specialist: agent.name,
-                message: `Executed task for query: ${query}`,
+                evidencePack: ep,
               };
             }
           }
