@@ -85,7 +85,6 @@ export interface CoastalZoneAnchor {
   pfzCoordinates: { latitude: number; longitude: number };
   pfzDistanceNM: number;
   pfzBearing: string;
-  targetSpecies: string[];
   nearestImblName: string;
   imblDistanceKm: number;
   nearestMpaName: string;
@@ -102,7 +101,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     pfzCoordinates: { latitude: 18.742, longitude: 72.315 },
     pfzDistanceNM: 32,
     pfzBearing: "245° (WSW)",
-    targetSpecies: ["Indian Mackerel", "Skipjack Tuna", "Ribbonfish", "Horse Mackerel"],
     nearestImblName: "Indo-Pak IMBL (Sir Creek Sector)",
     imblDistanceKm: 420.0,
     nearestMpaName: "Thane Creek Flamingo Sanctuary",
@@ -117,7 +115,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     pfzCoordinates: { latitude: 20.72, longitude: 69.88 },
     pfzDistanceNM: 28,
     pfzBearing: "240° (WSW)",
-    targetSpecies: ["Silver Pomfret", "Ribbonfish", "Croaker", "Cuttlefish"],
     nearestImblName: "Indo-Pak IMBL (Sir Creek / Kori Creek)",
     imblDistanceKm: 145.0,
     nearestMpaName: "Marine National Park (Gulf of Kutch)",
@@ -132,7 +129,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     pfzCoordinates: { latitude: 16.85, longitude: 72.95 },
     pfzDistanceNM: 22,
     pfzBearing: "230° (SW)",
-    targetSpecies: ["Oil Sardines", "Mackerel", "Kingfish", "Squid"],
     nearestImblName: "Indo-Pak IMBL",
     imblDistanceKm: 650.0,
     nearestMpaName: "Malvan Marine Sanctuary",
@@ -147,7 +143,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     pfzCoordinates: { latitude: 9.75, longitude: 75.82 },
     pfzDistanceNM: 29,
     pfzBearing: "245° (WSW)",
-    targetSpecies: ["Indian Oil Sardine", "Mackerel", "Yellowfin Tuna", "Penaeid Prawns"],
     nearestImblName: "Indo-Sri Lanka IMBL (Gulf of Mannar)",
     imblDistanceKm: 220.0,
     nearestMpaName: "Vembanad Marine Protected Wetland",
@@ -162,7 +157,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     pfzCoordinates: { latitude: 13.22, longitude: 80.68 },
     pfzDistanceNM: 25,
     pfzBearing: "065° (ENE)",
-    targetSpecies: ["Seer Fish (Vanjaram)", "Sardines", "Anchovies", "Crabs"],
     nearestImblName: "Indo-Sri Lanka IMBL (Palk Strait)",
     imblDistanceKm: 290.0,
     nearestMpaName: "Pulicat Lake Bird Sanctuary Waters",
@@ -177,7 +171,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     pfzCoordinates: { latitude: 9.15, longitude: 79.55 },
     pfzDistanceNM: 18,
     pfzBearing: "125° (SE)",
-    targetSpecies: ["Blue Swimming Crab", "Squid", "Mullet", "Snapper"],
     nearestImblName: "Indo-Sri Lanka IMBL (Katchatheevu Corridor)",
     imblDistanceKm: 14.2,
     nearestMpaName: "Gulf of Mannar Marine National Park",
@@ -192,7 +185,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     pfzCoordinates: { latitude: 17.52, longitude: 83.65 },
     pfzDistanceNM: 27,
     pfzBearing: "115° (ESE)",
-    targetSpecies: ["Yellowfin Tuna", "Ribbonfish", "Shrimp", "Mackerel"],
     nearestImblName: "Indo-Bangladesh IMBL",
     imblDistanceKm: 510.0,
     nearestMpaName: "Coringa Wildlife Sanctuary Waters",
@@ -207,7 +199,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     pfzCoordinates: { latitude: 20.12, longitude: 86.95 },
     pfzDistanceNM: 23,
     pfzBearing: "120° (ESE)",
-    targetSpecies: ["Hilsa", "Pomfret", "Sea Bass (Bhetki)", "Tiger Prawns"],
     nearestImblName: "Indo-Bangladesh IMBL",
     imblDistanceKm: 180.0,
     nearestMpaName: "Gahirmatha Marine Sanctuary (Olive Ridley Nesting)",
@@ -493,11 +484,6 @@ export async function executeMarineCorePipeline(
         status: "simulated",
         source: "Forward Azimuth Bearing to Simulated INCOIS Hotspot Point",
       },
-      targetCatchSpecies: {
-        value: anchor.targetSpecies,
-        status: "real",
-        source: "CMFRI & Department of Fisheries Regional Species Census",
-      },
     },
     geospatialSafety: {
       imblBoundaryName: {
@@ -566,8 +552,8 @@ export async function executeMarineCorePipeline(
       },
     },
     auditSummary: {
-      totalFieldsCount: 28,
-      realFieldsCount: 18,
+      totalFieldsCount: 27,
+      realFieldsCount: 17,
       simulatedFieldsCount: 8,
       unavailableFieldsCount: 2,
       primaryRealApisUsed: ["Open-Meteo Marine Physics REST API", "Open-Meteo Global Weather REST API", "IMO Formal Safety Assessment Engine", "Indian Coastal Coordinate Registry"],
@@ -587,6 +573,8 @@ CRITICAL RULES FOR GENERATING YOUR RESPONSE:
 4. Answer ONLY what the user asked in the query: "${query}". Do not add irrelevant essays.
 5. In the first 2 lines, deliver the direct tactical answer (Location, Distance/Bearing if PFZ, Wave/Wind if Weather, Safety Badge).
 6. Format key parameters from the Evidence Pack into a clean Markdown table.
+7. CRITICAL NUMERIC CONSISTENCY: You MUST copy the EXACT numerical values from the <verified_evidence_pack> into your text and table without altering, recalculating, or rounding them. If surfaceWindSpeedKmph is 15.1 km/h in the Evidence Pack, you MUST write exactly 15.1 km/h.
+8. ZERO SPECIES FABRICATION: Do NOT mention or invent any fish species names. There is no verified species data in the Evidence Pack.
 `;
 
   return {

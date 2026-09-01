@@ -48,7 +48,6 @@ export interface CoastalZoneInfo {
   pfzCoordinates: { latitude: number; longitude: number };
   pfzDistanceNM: number;
   pfzBearing: string;
-  targetSpecies: string[];
 }
 
 export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
@@ -61,7 +60,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 18.7420, longitude: 72.3150 },
     pfzDistanceNM: 32,
     pfzBearing: "245° (WSW)",
-    targetSpecies: ["Indian Mackerel", "Skipjack Tuna", "Ribbonfish", "Horse Mackerel"],
   },
   ratnagiri: {
     name: "Ratnagiri Offshore",
@@ -72,7 +70,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 16.8500, longitude: 72.9500 },
     pfzDistanceNM: 22,
     pfzBearing: "230° (SW)",
-    targetSpecies: ["Oil Sardines", "Mackerel", "Kingfish", "Squid"],
   },
   sindhudurg: {
     name: "Sindhudurg & Malvan Waters",
@@ -83,7 +80,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 15.9200, longitude: 73.1200 },
     pfzDistanceNM: 21,
     pfzBearing: "240° (WSW)",
-    targetSpecies: ["Mackerel", "Pomfret", "Surmai", "Prawns"],
   },
   veraval: {
     name: "Veraval & Saurashtra Coast",
@@ -94,7 +90,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 20.7200, longitude: 69.8800 },
     pfzDistanceNM: 28,
     pfzBearing: "240° (WSW)",
-    targetSpecies: ["Silver Pomfret", "Ribbonfish", "Cuttlefish", "Croakers"],
   },
   porbandar: {
     name: "Porbandar Coastal Waters",
@@ -105,7 +100,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 21.4500, longitude: 69.1800 },
     pfzDistanceNM: 27,
     pfzBearing: "235° (SW)",
-    targetSpecies: ["Hilsa", "Tuna", "Catfish", "Squid"],
   },
   goa: {
     name: "Goa Coastal Waters",
@@ -116,7 +110,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 15.2200, longitude: 73.3800 },
     pfzDistanceNM: 26,
     pfzBearing: "240° (WSW)",
-    targetSpecies: ["Mackerel", "Kingfish (Surmai)", "Sardines", "Seerfish"],
   },
   kochi: {
     name: "Kochi Offshore Waters",
@@ -127,7 +120,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 9.7500, longitude: 75.8200 },
     pfzDistanceNM: 29,
     pfzBearing: "245° (WSW)",
-    targetSpecies: ["Yellowfin Tuna", "Indian Oil Sardine", "Mackerel", "Squid"],
   },
   chennai: {
     name: "Chennai Coastal Waters",
@@ -138,7 +130,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 13.1500, longitude: 80.6800 },
     pfzDistanceNM: 25,
     pfzBearing: "075° (ENE)",
-    targetSpecies: ["Barracuda", "Seerfish", "Skipjack Tuna", "Trevally"],
   },
   rameswaram: {
     name: "Palk Bay & Gulf of Mannar",
@@ -149,7 +140,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 9.1500, longitude: 79.6200 },
     pfzDistanceNM: 19,
     pfzBearing: "120° (ESE)",
-    targetSpecies: ["Blue Crab", "Squid", "Emperor", "Snapper"],
   },
   visakhapatnam: {
     name: "Visakhapatnam Waters",
@@ -160,7 +150,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 17.5200, longitude: 83.6500 },
     pfzDistanceNM: 27,
     pfzBearing: "115° (ESE)",
-    targetSpecies: ["Ribbonfish", "Tuna", "Mackerel", "Brown Shrimp"],
   },
   paradip: {
     name: "Paradip Coastal Waters",
@@ -171,7 +160,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 20.1200, longitude: 87.0500 },
     pfzDistanceNM: 26,
     pfzBearing: "120° (ESE)",
-    targetSpecies: ["Hilsa", "Pomfret", "Sea Bass (Bhetki)", "Tiger Prawns"],
   },
   digha: {
     name: "Digha & Northern Bay of Bengal",
@@ -182,7 +170,6 @@ export const INDIAN_COASTAL_ZONES: Record<string, CoastalZoneInfo> = {
     pfzCoordinates: { latitude: 21.3200, longitude: 88.0200 },
     pfzDistanceNM: 34,
     pfzBearing: "125° (SE)",
-    targetSpecies: ["Hilsa (Ilish)", "Pomfret", "Bombay Duck", "Prawns"],
   },
 };
 
@@ -321,7 +308,6 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
                     bearing: ep.bioOptics.nearestPfzBearing.value,
                     status: ep.bioOptics.nearestPfzCoordinates.status,
                   },
-                  targetCatchSpecies: ep.bioOptics.targetCatchSpecies.value,
                   seaSurfaceTemperature: `${ep.oceanPhysics.seaSurfaceTemperatureCelsius.value} °C (${ep.oceanPhysics.seaSurfaceTemperatureCelsius.status})`,
                   thermalGradientDegPer5Km: `${ep.bioOptics.horizontalSstGradientDegPer5Km.value} °C / 5km (${ep.bioOptics.horizontalSstGradientDegPer5Km.status})`,
                   chlorophyllConcentration: `${ep.bioOptics.chlorophyllConcentrationMgM3.value} mg/m³ (${ep.bioOptics.chlorophyllConcentrationMgM3.status})`,
@@ -380,7 +366,6 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
                     { parameter: "Target Harbor", value: ep.location.harbor.value, status: ep.location.harbor.status },
                     { parameter: "Location Coordinates", value: `${ep.location.latitude.value}°N, ${ep.location.longitude.value}°E`, status: ep.location.latitude.status },
                     { parameter: "Nearest PFZ", value: `${ep.bioOptics.nearestPfzDistanceNM.value} NM (${ep.bioOptics.nearestPfzBearing.value})`, status: ep.bioOptics.nearestPfzCoordinates.status },
-                    { parameter: "Target Species", value: ep.bioOptics.targetCatchSpecies.value.join(", "), status: ep.bioOptics.targetCatchSpecies.status },
                     { parameter: "Significant Wave Height", value: `${ep.oceanPhysics.significantWaveHeightMeters.value} m`, status: ep.oceanPhysics.significantWaveHeightMeters.status },
                     { parameter: "Surface Wind Speed", value: `${ep.weather.surfaceWindSpeedKmph.value} km/h`, status: ep.weather.surfaceWindSpeedKmph.status },
                     { parameter: "Sea Surface Temp (SST)", value: `${ep.oceanPhysics.seaSurfaceTemperatureCelsius.value} °C`, status: ep.oceanPhysics.seaSurfaceTemperatureCelsius.status },

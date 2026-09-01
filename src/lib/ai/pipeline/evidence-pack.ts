@@ -50,7 +50,6 @@ export interface EvidencePackBioOptics {
   nearestPfzCoordinates: EvidenceField<{ latitude: number; longitude: number } | null>;
   nearestPfzDistanceNM: EvidenceField<number | null>;
   nearestPfzBearing: EvidenceField<string | null>;
-  targetCatchSpecies: EvidenceField<string[]>;
 }
 
 export interface EvidencePackGeospatialSafety {
