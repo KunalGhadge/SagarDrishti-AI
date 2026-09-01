@@ -356,22 +356,51 @@ export function createMarineSupervisorTools(dataStream?: UIMessageStreamWriter):
             }
 
             case "presentation-synthesis-agent": {
+              let rows: Array<{ parameter: string; value: string; status?: string }> = [];
+
+              if (pipelineResult.intent === "VENTURE_SAFETY") {
+                rows = [
+                  { parameter: "Operational Safety Verdict", value: `${ep.geospatialSafety.imoSafetyBadge.value} (RI = ${ep.geospatialSafety.imoRiskIndex.value})`, status: ep.geospatialSafety.imoRiskIndex.status },
+                  { parameter: "Significant Wave Height", value: `${ep.oceanPhysics.significantWaveHeightMeters.value} m`, status: ep.oceanPhysics.significantWaveHeightMeters.status },
+                  { parameter: "Surface Wind Speed", value: `${ep.weather.surfaceWindSpeedKmph.value} km/h`, status: ep.weather.surfaceWindSpeedKmph.status },
+                  { parameter: "Small Craft Advisory", value: ep.geospatialSafety.smallCraftAdvisory.value, status: ep.geospatialSafety.smallCraftAdvisory.status },
+                ];
+              } else if (pipelineResult.intent === "PFZ_LOCATION") {
+                rows = [
+                  { parameter: "Nearest PFZ Coordinate", value: `${ep.bioOptics.nearestPfzCoordinates.value?.latitude}°N, ${ep.bioOptics.nearestPfzCoordinates.value?.longitude}°E`, status: ep.bioOptics.nearestPfzCoordinates.status },
+                  { parameter: "Distance & Bearing", value: `${ep.bioOptics.nearestPfzDistanceNM.value} NM (${ep.bioOptics.nearestPfzBearing.value})`, status: ep.bioOptics.nearestPfzDistanceNM.status },
+                  { parameter: "Sea Surface Temp (SST)", value: `${ep.oceanPhysics.seaSurfaceTemperatureCelsius.value} °C (simulated baseline)`, status: ep.oceanPhysics.seaSurfaceTemperatureCelsius.status },
+                  { parameter: "IMO Risk Level", value: `${ep.geospatialSafety.imoSafetyBadge.value} (RI = ${ep.geospatialSafety.imoRiskIndex.value})`, status: ep.geospatialSafety.imoRiskIndex.status },
+                ];
+              } else if (pipelineResult.intent === "ALERT_CHECK") {
+                rows = [
+                  { parameter: "Active Cyclone Alert", value: ep.weather.activeCycloneAlert.value ? "ACTIVE" : "NIL (No storm)", status: ep.weather.activeCycloneAlert.status },
+                  { parameter: "Surface Wind Speed", value: `${ep.weather.surfaceWindSpeedKmph.value} km/h`, status: ep.weather.surfaceWindSpeedKmph.status },
+                  { parameter: "Lightning / Squall Risk", value: `${ep.weather.lightningRisk.value} (simulated baseline)`, status: ep.weather.lightningRisk.status },
+                  { parameter: "IMO Safety Badge", value: ep.geospatialSafety.imoSafetyBadge.value, status: ep.geospatialSafety.imoSafetyBadge.status },
+                ];
+              } else if (pipelineResult.intent === "GEOFENCE_CHECK") {
+                rows = [
+                  { parameter: "Nearest Maritime Boundary", value: `${ep.geospatialSafety.imblBoundaryName.value} (${ep.geospatialSafety.distanceToImblKm.value} km)`, status: ep.geospatialSafety.distanceToImblKm.status },
+                  { parameter: "Nearest Protected Area", value: `${ep.geospatialSafety.nearestMarineProtectedArea.value} (${ep.geospatialSafety.distanceToMpaKm.value} km)`, status: ep.geospatialSafety.distanceToMpaKm.status },
+                  { parameter: "Border Proximity Warning", value: ep.geospatialSafety.isApproachingBorderAlert.value ? "WARNING: < 20 km" : "CLEAR: Safe distance", status: ep.geospatialSafety.isApproachingBorderAlert.status },
+                ];
+              } else {
+                rows = [
+                  { parameter: "Target Harbor", value: ep.location.harbor.value, status: ep.location.harbor.status },
+                  { parameter: "Significant Wave Height", value: `${ep.oceanPhysics.significantWaveHeightMeters.value} m`, status: ep.oceanPhysics.significantWaveHeightMeters.status },
+                  { parameter: "Surface Wind Speed", value: `${ep.weather.surfaceWindSpeedKmph.value} km/h`, status: ep.weather.surfaceWindSpeedKmph.status },
+                  { parameter: "IMO Risk Level", value: `${ep.geospatialSafety.imoSafetyBadge.value} (RI = ${ep.geospatialSafety.imoRiskIndex.value})`, status: ep.geospatialSafety.imoRiskIndex.status },
+                ];
+              }
+
               agentOutput = {
                 specialist: agent.name,
                 role: agent.instructions.role,
                 intentCategory: pipelineResult.intent,
                 presentationMatrix: {
-                  title: `Marine Telemetry & Evidence Pack - ${ep.location.coastalZone.value}`,
-                  rows: [
-                    { parameter: "Target Harbor", value: ep.location.harbor.value, status: ep.location.harbor.status },
-                    { parameter: "Location Coordinates", value: `${ep.location.latitude.value}°N, ${ep.location.longitude.value}°E`, status: ep.location.latitude.status },
-                    { parameter: "Nearest PFZ", value: `${ep.bioOptics.nearestPfzDistanceNM.value} NM (${ep.bioOptics.nearestPfzBearing.value})`, status: ep.bioOptics.nearestPfzCoordinates.status },
-                    { parameter: "Significant Wave Height", value: `${ep.oceanPhysics.significantWaveHeightMeters.value} m`, status: ep.oceanPhysics.significantWaveHeightMeters.status },
-                    { parameter: "Surface Wind Speed", value: `${ep.weather.surfaceWindSpeedKmph.value} km/h`, status: ep.weather.surfaceWindSpeedKmph.status },
-                    { parameter: "Sea Surface Temp (SST)", value: `${ep.oceanPhysics.seaSurfaceTemperatureCelsius.value} °C`, status: ep.oceanPhysics.seaSurfaceTemperatureCelsius.status },
-                    { parameter: "Chlorophyll-a", value: `${ep.bioOptics.chlorophyllConcentrationMgM3.value} mg/m³`, status: ep.bioOptics.chlorophyllConcentrationMgM3.status },
-                    { parameter: "IMO Risk Level", value: `${ep.geospatialSafety.imoSafetyBadge.value} (RI = ${ep.geospatialSafety.imoRiskIndex.value})`, status: ep.geospatialSafety.imoRiskIndex.status },
-                  ],
+                  title: `Marine Decision Matrix - ${ep.location.coastalZone.value}`,
+                  rows,
                 },
                 evidencePack: ep,
               };

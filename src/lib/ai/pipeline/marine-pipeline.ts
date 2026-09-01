@@ -38,7 +38,7 @@ export const CATEGORY_TOOL_LOOKUP: Record<
     requiresRiskEngine: true,
   },
   ALERT_CHECK: {
-    requiredAgents: ["Weather & Cyclone Intelligence Agent", "Geospatial & Maritime Safety Agent"],
+    requiredAgents: ["Weather & Cyclone Intelligence Agent", "Geospatial & Maritime Safety Agent", "Marine Presentation & Synthesis Agent"],
     visibleTools: ["marinePhysics", "createTable"],
     requiresInsightEngine: false,
     requiresRiskEngine: true,
@@ -68,7 +68,7 @@ export const CATEGORY_TOOL_LOOKUP: Record<
     requiresRiskEngine: true,
   },
   UNKNOWN: {
-    requiredAgents: ["Weather & Cyclone Intelligence Agent", "Ocean & Earth-Observation Analytics Agent"],
+    requiredAgents: ["Weather & Cyclone Intelligence Agent", "Ocean & Earth-Observation Analytics Agent", "Marine Presentation & Synthesis Agent"],
     visibleTools: ["marinePhysics", "createTable"],
     requiresInsightEngine: true,
     requiresRiskEngine: true,
