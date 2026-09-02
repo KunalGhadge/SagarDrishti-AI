@@ -9,7 +9,6 @@ import { appStore } from "@/app/store";
 import { cn, createDebounce, generateUUID, truncateString } from "lib/utils";
 import { ErrorMessage, PreviewMessage } from "./message";
 import { ChatGreeting } from "./chat-greeting";
-import { ChatStarterQuestions } from "./chat-starter-questions";
 
 import { useShallow } from "zustand/shallow";
 import {
@@ -511,13 +510,6 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             onStop={stop}
             onFocus={isFirstTime ? undefined : handleFocus}
           />
-
-          {emptyMessage && (
-            <ChatStarterQuestions
-              onSelect={(q) => sendMessage({ text: q })}
-              disabled={isLoading || isPendingToolCall}
-            />
-          )}
         </div>
         <DeleteThreadPopup
           threadId={threadId}
