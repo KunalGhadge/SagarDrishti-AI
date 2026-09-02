@@ -6,7 +6,6 @@ import {
   CornerRightUp,
   FileIcon,
   FileTextIcon,
-  ImagesIcon,
   Loader2,
   PaperclipIcon,
   PlusIcon,
@@ -40,10 +39,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -221,30 +216,6 @@ export default function PromptInput({
       setIsUploadDropdownOpen(false);
     },
     [uploadFiles],
-  );
-
-  const handleGenerateImage = useCallback(
-    (provider?: "google" | "openai") => {
-      if (!provider) {
-        appStoreMutate({
-          threadImageToolModel: {},
-        });
-      }
-      if (!threadId) return;
-
-      setIsUploadDropdownOpen(false);
-
-      appStoreMutate((prev) => ({
-        threadImageToolModel: {
-          ...prev.threadImageToolModel,
-          [threadId]: provider,
-        },
-      }));
-
-      // Focus on the input
-      editorRef.current?.commands.focus();
-    },
-    [threadId, editorRef],
   );
 
   const addMention = useCallback(
@@ -526,59 +497,19 @@ export default function PromptInput({
                       <PaperclipIcon className="mr-2 size-4" />
                       {t("uploadImage")}
                     </DropdownMenuItem>
-
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger className="cursor-pointer">
-                        <ImagesIcon className="mr-4 size-4 text-muted-foreground" />
-                        <span className="mr-4">{t("generateImage")}</span>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuPortal>
-                        <DropdownMenuSubContent>
-                          <DropdownMenuItem
-                            disabled={modelInfo?.isToolCallUnsupported}
-                            onClick={() => handleGenerateImage("google")}
-                            className="cursor-pointer"
-                          >
-                            <GeminiIcon className="mr-2 size-4" />
-                            Gemini (Nano Banana)
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            disabled={modelInfo?.isToolCallUnsupported}
-                            onClick={() => handleGenerateImage("openai")}
-                            className="cursor-pointer"
-                          >
-                            <OpenAIIcon className="mr-2 size-4" />
-                            OpenAI
-                          </DropdownMenuItem>
-                        </DropdownMenuSubContent>
-                      </DropdownMenuPortal>
-                    </DropdownMenuSub>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {!toolDisabled &&
-                  (imageToolModel ? (
-                    <Button
-                      variant={"ghost"}
-                      size={"sm"}
-                      className="rounded-full hover:bg-input! p-2! group/image-generator text-primary"
-                      onClick={() => handleGenerateImage()}
-                    >
-                      <ImagesIcon className="size-3.5" />
-                      {t("generateImage")}
-                      <XIcon className="size-3 group-hover/image-generator:opacity-100 opacity-0 transition-opacity duration-200" />
-                    </Button>
-                  ) : (
-                    <ToolSelectDropdown
-                      className="mx-1"
-                      align="start"
-                      side="top"
-                      onSelectWorkflow={onSelectWorkflow}
-                      onSelectAgent={onSelectAgent}
-                      onGenerateImage={handleGenerateImage}
-                      mentions={mentions}
-                    />
-                  ))}
+                {!toolDisabled && (
+                  <ToolSelectDropdown
+                    className="mx-1"
+                    align="start"
+                    side="top"
+                    onSelectWorkflow={onSelectWorkflow}
+                    onSelectAgent={onSelectAgent}
+                    mentions={mentions}
+                  />
+                )}
 
                 <div className="flex-1 flex items-center">
                   {userLocation ? (

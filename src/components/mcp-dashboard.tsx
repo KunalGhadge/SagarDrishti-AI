@@ -15,7 +15,7 @@ import { useMcpList } from "@/hooks/queries/use-mcp-list";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { cn } from "lib/utils";
 import {
   DropdownMenu,
@@ -113,6 +113,9 @@ export default function MCPDashboard({ message, user }: MCPDashboardProps) {
   }, [isValidating]);
 
   useEffect(() => {
+    toast.warning("MCP is currently under construction. Existing configurations and live tools remain functional.", {
+      id: "mcp-under-construction-toast",
+    });
     if (message) {
       toast(<p className="whitespace-pre-wrap break-all">{message}</p>, {
         id: "mcp-list-message",
@@ -125,6 +128,11 @@ export default function MCPDashboard({ message, user }: MCPDashboardProps) {
       {particle}
       <ScrollArea className="h-full w-full z-40 ">
         <div className="pt-8 flex-1 relative flex flex-col gap-4 px-8 max-w-3xl h-full mx-auto pb-8">
+          <div className="flex items-center gap-2.5 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-xs font-medium">
+            <AlertTriangle className="size-4 shrink-0" />
+            <span>MCP is currently under construction. Existing configurations and live external marine tools remain fully functional.</span>
+          </div>
+
           <div className={cn("flex items-center  pb-8")}>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               {canCreate ? t("mcpServers") : t("availableMcpServers")}

@@ -1,7 +1,6 @@
 "use client";
 
 import { appStore } from "@/app/store";
-import { AllowedMCPServer, MCPServerInfo } from "app-types/mcp";
 import { cn, objectFlow } from "lib/utils";
 import {
   ArrowUpRightIcon,
@@ -11,30 +10,23 @@ import {
   CodeIcon,
   GlobeIcon,
   HardDriveUploadIcon,
-  ImagesIcon,
   InfoIcon,
   Loader,
   MessageCircle,
   MousePointer2,
-  Package,
-  Plus,
   ShieldAlertIcon,
   Waypoints,
   Wrench,
   WrenchIcon,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "ui/badge";
 import { Button } from "ui/button";
 import { Checkbox } from "ui/checkbox";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "ui/dialog";
@@ -51,7 +43,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "ui/dropdown-menu";
-import { Input } from "ui/input";
 import { MCPIcon } from "ui/mcp-icon";
 
 import { useTranslations } from "next-intl";
@@ -78,9 +69,6 @@ import { mutate } from "swr";
 import { handleErrorWithToast } from "ui/shared-toast";
 import { useAgents } from "@/hooks/queries/use-agents";
 import { redriectMcpOauth } from "lib/ai/mcp/oauth-redirect";
-import { GeminiIcon } from "ui/gemini-icon";
-import { useChatModels } from "@/hooks/queries/use-chat-models";
-import { OpenAIIcon } from "ui/openai-icon";
 
 interface ToolSelectDropdownProps {
   align?: "start" | "end" | "center";
@@ -89,26 +77,14 @@ interface ToolSelectDropdownProps {
   mentions?: ChatMention[];
   onSelectWorkflow?: (workflow: WorkflowSummary) => void;
   onSelectAgent?: (agent: AgentSummary) => void;
-  onGenerateImage?: (provider?: "google" | "openai") => void;
   className?: string;
 }
-
-const calculateToolCount = (
-  allowedMcpServers: Record<string, AllowedMCPServer>,
-  mcpList: (MCPServerInfo & { id: string })[],
-) => {
-  return mcpList.reduce((acc, server) => {
-    const count = allowedMcpServers[server.id]?.tools?.length;
-    return acc + count;
-  }, 0);
-};
 
 export function ToolSelectDropdown({
   align,
   side,
   onSelectWorkflow,
   onSelectAgent,
-  onGenerateImage,
   mentions,
   className,
 }: ToolSelectDropdownProps) {
@@ -125,18 +101,6 @@ export function ToolSelectDropdown({
 
   const t = useTranslations("Chat.Tool");
   const { isLoading } = useMcpList();
-  const { data: providers } = useChatModels();
-  const [globalModel] = appStore(useShallow((state) => [state.chatModel]));
-
-  const modelInfo = useMemo(() => {
-    const provider = providers?.find(
-      (provider) => provider.provider === globalModel?.provider,
-    );
-    const model = provider?.models.find(
-      (model) => model.name === globalModel?.model,
-    );
-    return model;
-  }, [providers, globalModel]);
 
   useWorkflowToolList({
     refreshInterval: 1000 * 60 * 5,
@@ -258,18 +222,7 @@ export function ToolSelectDropdown({
         <div className="py-1">
           <DropdownMenuSeparator />
         </div>
-        <ImageGeneratorSelector
-          onGenerateImage={onGenerateImage}
-          modelInfo={modelInfo}
-        />
-        <div className="py-1">
-          <DropdownMenuSeparator />
-        </div>
         <div className="py-2">
-          <ToolPresets />
-          <div className="py-1">
-            <DropdownMenuSeparator />
-          </div>
           <AppDefaultToolKitSelector />
           <div className="py-1">
             <DropdownMenuSeparator />
@@ -278,174 +231,6 @@ export function ToolSelectDropdown({
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function ToolPresets() {
-  const [
-    appStoreMutate,
-    presets,
-    allowedMcpServers,
-    allowedAppDefaultToolkit,
-    mcpList,
-  ] = appStore(
-    useShallow((state) => [
-      state.mutate,
-      state.toolPresets,
-      state.allowedMcpServers,
-      state.allowedAppDefaultToolkit,
-      state.mcpList,
-    ]),
-  );
-  const [open, setOpen] = useState(false);
-  const [presetName, setPresetName] = useState("");
-  const t = useTranslations();
-
-  const presetWithToolCount = useMemo(() => {
-    return presets.map((preset) => ({
-      ...preset,
-      toolCount: calculateToolCount(preset.allowedMcpServers ?? {}, mcpList),
-    }));
-  }, [presets, mcpList]);
-
-  const addPreset = useCallback(
-    (name: string) => {
-      if (name.trim() === "") {
-        toast.error(t("Chat.Tool.presetNameCannotBeEmpty"));
-        return;
-      }
-      if (presets.find((p) => p.name === name)) {
-        toast.error(t("Chat.Tool.presetNameAlreadyExists"));
-        return;
-      }
-      appStoreMutate((prev) => {
-        return {
-          toolPresets: [
-            ...prev.toolPresets,
-            { name, allowedMcpServers, allowedAppDefaultToolkit },
-          ],
-        };
-      });
-      setPresetName("");
-      setOpen(false);
-      toast.success(t("Chat.Tool.presetSaved"));
-    },
-    [allowedMcpServers, allowedAppDefaultToolkit, presets],
-  );
-
-  const deletePreset = useCallback((index: number) => {
-    appStoreMutate((prev) => {
-      return {
-        toolPresets: prev.toolPresets.filter((_, i) => i !== index),
-      };
-    });
-  }, []);
-
-  const applyPreset = useCallback((preset: (typeof presets)[number]) => {
-    appStoreMutate({
-      allowedMcpServers: preset.allowedMcpServers,
-      allowedAppDefaultToolkit: preset.allowedAppDefaultToolkit,
-    });
-  }, []);
-
-  return (
-    <DropdownMenuGroup className="cursor-pointer">
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger className="text-xs flex items-center gap-2 font-semibold cursor-pointer">
-          <Package className="size-3.5" />
-          {t("Chat.Tool.preset")}
-        </DropdownMenuSubTrigger>
-        <DropdownMenuPortal>
-          <DropdownMenuSubContent className="md:w-80 md:max-h-96 overflow-y-auto">
-            <DropdownMenuLabel className="flex items-center text-muted-foreground gap-2 text-xs">
-              {t("Chat.Tool.toolPresets")}
-              <div className="flex-1" />
-              <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
-                  <Button variant={"secondary"} size={"sm"} className="text-xs">
-                    {t("Chat.Tool.saveAsPreset")}
-                    <Plus className="size-3.5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{t("Chat.Tool.saveAsPreset")}</DialogTitle>
-                  </DialogHeader>
-                  <DialogDescription>
-                    {t("Chat.Tool.saveAsPresetDescription")}
-                  </DialogDescription>
-                  <Input
-                    placeholder={t("Chat.Tool.presetNamePlaceholder")}
-                    value={presetName}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                        addPreset(presetName);
-                      }
-                    }}
-                    onChange={(e) => setPresetName(e.target.value)}
-                  />
-                  <Button
-                    variant={"secondary"}
-                    size={"sm"}
-                    className="border"
-                    onClick={() => {
-                      addPreset(presetName);
-                    }}
-                  >
-                    {t("Common.save")}
-                  </Button>
-                </DialogContent>
-              </Dialog>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {presets.length === 0 ? (
-              <div className="text-sm text-muted-foreground w-full h-full flex flex-col items-center justify-center gap-2 py-6">
-                <p>{t("Chat.Tool.noPresetsAvailableYet")}</p>
-                <p className="text-xs px-4">
-                  {t("Chat.Tool.clickSaveAsPresetToGetStarted")}
-                </p>
-              </div>
-            ) : (
-              presetWithToolCount.map((preset, index) => {
-                return (
-                  <DropdownMenuItem
-                    onClick={() => {
-                      applyPreset(preset);
-                    }}
-                    key={preset.name}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <Badge
-                      variant={"secondary"}
-                      className="rounded-full border-input"
-                    >
-                      <Wrench className="size-3.5" />
-                      <span className="min-w-6 text-center">
-                        {preset.toolCount}
-                      </span>
-                    </Badge>
-                    <span className="font-semibold truncate">
-                      {preset.name}
-                    </span>
-
-                    <div className="flex-1" />
-                    <div
-                      className="p-1 hover:bg-input rounded-full cursor-pointer"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        deletePreset(index);
-                      }}
-                    >
-                      <X className="size-3.5" />
-                    </div>
-                  </DropdownMenuItem>
-                );
-              })
-            )}
-          </DropdownMenuSubContent>
-        </DropdownMenuPortal>
-      </DropdownMenuSub>
-    </DropdownMenuGroup>
   );
 }
 
@@ -655,6 +440,15 @@ function McpServerSelector() {
   );
   return (
     <DropdownMenuGroup>
+      <div className="flex items-center justify-between px-2 py-1 mb-1">
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <MCPIcon className="size-3 fill-muted-foreground" />
+          MCP
+        </span>
+        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+          Under Construction
+        </span>
+      </div>
       {!selectedMcpServerList.length ? (
         <div className="text-sm text-muted-foreground w-full h-full flex flex-col items-center justify-center py-6">
           <div>{t("noMcpServersDetected")}</div>
@@ -1076,47 +870,6 @@ function AgentSelector({
                 </div>
               </DropdownMenuItem>
             ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuPortal>
-      </DropdownMenuSub>
-    </DropdownMenuGroup>
-  );
-}
-
-function ImageGeneratorSelector({
-  onGenerateImage,
-  modelInfo,
-}: {
-  onGenerateImage?: (provider?: "google" | "openai") => void;
-  modelInfo?: { isToolCallUnsupported?: boolean };
-}) {
-  const t = useTranslations("Chat");
-
-  return (
-    <DropdownMenuGroup>
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger className="text-xs flex items-center gap-2 font-semibold cursor-pointer">
-          <ImagesIcon className="size-3.5" />
-          {t("generateImage")}
-        </DropdownMenuSubTrigger>
-        <DropdownMenuPortal>
-          <DropdownMenuSubContent>
-            <DropdownMenuItem
-              disabled={modelInfo?.isToolCallUnsupported}
-              onClick={() => onGenerateImage?.("google")}
-              className="cursor-pointer"
-            >
-              <GeminiIcon className="mr-2 size-4" />
-              Gemini (Nano Banana)
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={modelInfo?.isToolCallUnsupported}
-              onClick={() => onGenerateImage?.("openai")}
-              className="cursor-pointer"
-            >
-              <OpenAIIcon className="mr-2 size-4" />
-              OpenAI
-            </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuPortal>
       </DropdownMenuSub>
