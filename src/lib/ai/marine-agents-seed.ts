@@ -145,9 +145,21 @@ DIRECT-ANSWER-FIRST PROTOCOL:
         },
         {
           type: "defaultTool",
+          name: DefaultToolName.NoaaChlorophyll,
+          label: DefaultToolName.NoaaChlorophyll,
+          description: "Fetch live NOAA CoastWatch ERDDAP VIIRS satellite chlorophyll-a concentration",
+        },
+        {
+          type: "defaultTool",
           name: DefaultToolName.CreateLineChart,
           label: DefaultToolName.CreateLineChart,
           description: "Render SST and wave height time-series curves",
+        },
+        {
+          type: "defaultTool",
+          name: DefaultToolName.CreateMapView,
+          label: DefaultToolName.CreateMapView,
+          description: "Render interactive tactical maps with user location and PFZ candidate pins",
         },
       ],
     },

@@ -363,7 +363,7 @@ export async function fetchRealMarineTelemetry(lat: number, lon: number) {
   };
 }
 
-export const DISTRESS_REGEX = /pirates|attack|danger|emergency|sos|help|sinking|distress|threat/i;
+export const DISTRESS_REGEX = /\b(pirates|under attack|sinking|sos|mayday|man overboard|distress call|maritime emergency)\b/i;
 
 export function isDistressQuery(query: string): boolean {
   return DISTRESS_REGEX.test(query);

@@ -275,6 +275,7 @@ export const pgAgentRepository: AgentRepository = {
         description: AgentTable.description,
         icon: AgentTable.icon,
         userId: AgentTable.userId,
+        instructions: AgentTable.instructions,
         visibility: AgentTable.visibility,
         createdAt: AgentTable.createdAt,
         updatedAt: AgentTable.updatedAt,
@@ -303,6 +304,7 @@ export const pgAgentRepository: AgentRepository = {
       ...result,
       description: result.description ?? undefined,
       icon: result.icon ?? undefined,
+      instructions: result.instructions ?? {},
       userName: result.userName ?? undefined,
       userAvatar: result.userAvatar ?? undefined,
     }));

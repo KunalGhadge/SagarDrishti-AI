@@ -236,6 +236,7 @@ export async function POST(request: Request) {
               dataStream,
               userLocation,
               agents: dbAgents,
+              model,
             }),
           )
           .orElse({});

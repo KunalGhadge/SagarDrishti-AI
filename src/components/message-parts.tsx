@@ -17,6 +17,8 @@ import {
   EllipsisIcon,
   FileIcon,
   Download,
+  Sparkles,
+  CornerDownRight,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "ui/tooltip";
 import { Button } from "ui/button";
@@ -285,6 +287,37 @@ export const UserMessagePart = memo(
 );
 UserMessagePart.displayName = "UserMessagePart";
 
+function extractFollowUpQuestions(text: string): string[] {
+  if (!text || typeof text !== "string") return [];
+
+  const questions: string[] = [];
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lastLines = lines.slice(-8);
+
+  for (const line of lastLines) {
+    const cleaned = line
+      .replace(/^[-*•\d.)\]\s]+/, "")
+      .replace(/^[>\s]+/, "")
+      .replace(/^\*\*|\*\*$/g, "")
+      .trim();
+
+    if (!cleaned) continue;
+
+    const isQuestion =
+      cleaned.endsWith("?") ||
+      /^(would you like|do you want|shall i|should i|can i show|what are the|show me|find the|check the)/i.test(cleaned);
+
+    if (isQuestion && cleaned.length >= 12 && cleaned.length <= 130 && !cleaned.startsWith("#")) {
+      const qText = cleaned.endsWith("?") ? cleaned : `${cleaned}?`;
+      if (!questions.includes(qText)) {
+        questions.push(qText);
+      }
+    }
+  }
+
+  return questions.slice(0, 3);
+}
+
 export const AssistMessagePart = memo(function AssistMessagePart({
   part,
   showActions,
@@ -302,6 +335,10 @@ export const AssistMessagePart = memo(function AssistMessagePart({
   const [isDeleting, setIsDeleting] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const metadata = message.metadata as ChatMetadata | undefined;
+
+  const followUps = useMemo(() => {
+    return extractFollowUpQuestions(part.text);
+  }, [part.text]);
 
   const agent = useMemo(() => {
     return agentList.find((a) => a.id === metadata?.agentId);
@@ -373,6 +410,25 @@ export const AssistMessagePart = memo(function AssistMessagePart({
         })}
       >
         <Markdown>{part.text}</Markdown>
+
+        {followUps.length > 0 && sendMessage && !readonly && (
+          <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-border/40">
+            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1 w-full mb-1">
+              <Sparkles className="size-3 text-primary" /> Suggested Next Steps:
+            </span>
+            {followUps.map((q, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => sendMessage({ text: q })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-secondary/60 hover:bg-secondary/90 text-foreground border border-border/70 hover:border-primary/50 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-[0.98] group"
+              >
+                <CornerDownRight className="size-3 text-primary group-hover:translate-x-0.5 transition-transform" />
+                <span>{q}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       {showActions && (
         <div className="flex w-full">
@@ -979,6 +1035,14 @@ export const ToolMessagePart = memo(
         );
       return !isCompleted && isLast;
     }, [isWorkflowTool, isCompleted, result, isLast]);
+
+    useEffect(() => {
+      if (mcpServerName && isExecuting) {
+        toast.info(`Using live external marine data via MCP (${mcpServerName})...`, {
+          id: `mcp-${toolCallId}`,
+        });
+      }
+    }, [mcpServerName, isExecuting, toolCallId]);
 
     return (
       <div className="group w-full">

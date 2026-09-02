@@ -43,6 +43,13 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+body {
+  font-family: var(--font-geist-sans), "Noto Sans Devanagari", "Noto Sans", "Mangal", "Nirmala UI", "Segoe UI", system-ui, -apple-system, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 :root {
   --radius: 0.75rem;
   --background: oklch(1 0 0);

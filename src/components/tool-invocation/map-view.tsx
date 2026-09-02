@@ -17,13 +17,20 @@ export interface MapMarker {
   lon: number;
   label: string;
   type: "current" | "hazard" | "safe_zone" | "pfz";
-  isSimulated?: boolean;
+}
+
+export interface MapPolygon {
+  name: string;
+  type: "imbl" | "mpa" | "hazard" | "safe";
+  coordinates: Array<{ lat: number; lon: number }>;
+  color?: string;
 }
 
 export interface MapViewProps {
   title?: string;
   description?: string;
   markers: MapMarker[];
+  polygons?: MapPolygon[];
   path?: Array<{ lat: number; lon: number }>;
   pathLabel?: string;
 }
@@ -33,6 +40,7 @@ export function MapView(props: MapViewProps) {
     title = "Coastal Maritime Tactical Map",
     description = "OpenStreetMap / Leaflet georeferenced maritime telemetry",
     markers = [],
+    polygons = [],
     path,
     pathLabel = "Direct Bearing (Straight Line)",
   } = props;
@@ -87,25 +95,33 @@ export function MapView(props: MapViewProps) {
 
       const bounds = L.latLngBounds([]);
 
-      // Marker icon factory
+      // Marker color palette
       const getMarkerColor = (type: MapMarker["type"]) => {
         switch (type) {
           case "hazard":
             return "#ef4444"; // Red
           case "safe_zone":
-            return "#10b981"; // Green
+            return "#10b981"; // Emerald Green
           case "pfz":
-            return "#06b6d4"; // Cyan
+            return "#06b6d4"; // Cyan / Ocean Blue
           case "current":
           default:
-            return "#3b82f6"; // Blue
+            return "#3b82f6"; // Primary Blue
         }
       };
 
       // Add markers
       markers.forEach((m) => {
         const color = getMarkerColor(m.type);
-        const isSimulated = m.isSimulated;
+
+        const typeLabel =
+          m.type === "current"
+            ? "Your Reference Location"
+            : m.type === "pfz"
+            ? "Potential Fishing Zone Candidate"
+            : m.type === "safe_zone"
+            ? "Safe Harbor"
+            : "Maritime Hazard / Exclusion";
 
         // Custom Leaflet DivIcon for modern glowing marker
         const iconHtml = `
@@ -123,7 +139,8 @@ export function MapView(props: MapViewProps) {
               height: 24px;
               border-radius: 50%;
               background-color: ${color};
-              opacity: 0.3;
+              opacity: 0.35;
+              animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
             "></div>
             <div style="
               width: 14px;
@@ -147,10 +164,8 @@ export function MapView(props: MapViewProps) {
           <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4; color: #1e293b;">
             <div style="font-weight: 700; margin-bottom: 2px;">${m.label}</div>
             <div style="color: #64748b; font-size: 11px;">${m.lat.toFixed(4)}°N, ${m.lon.toFixed(4)}°E</div>
-            <div style="margin-top: 4px; display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; background-color: ${
-              isSimulated ? "#fef3c7" : "#dcfce7"
-            }; color: ${isSimulated ? "#92400e" : "#166534"};">
-              ${isSimulated ? "Simulated Baseline" : "Verified Real Position"}
+            <div style="margin-top: 4px; display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; background-color: #f1f5f9; color: #334155;">
+              ${typeLabel}
             </div>
           </div>
         `;
@@ -159,6 +174,38 @@ export function MapView(props: MapViewProps) {
         marker.bindPopup(popupContent);
         bounds.extend([m.lat, m.lon]);
       });
+
+      // Add Geofenced Polygons if provided
+      if (polygons && polygons.length > 0) {
+        polygons.forEach((poly) => {
+          const polyCoords = poly.coordinates.map((c) => [c.lat, c.lon] as [number, number]);
+          if (polyCoords.length >= 3) {
+            const polyColor =
+              poly.color ||
+              (poly.type === "imbl" || poly.type === "hazard"
+                ? "#ef4444"
+                : poly.type === "mpa"
+                ? "#f59e0b"
+                : "#10b981");
+
+            const polygonLayer = L.polygon(polyCoords, {
+              color: polyColor,
+              weight: 2,
+              fillColor: polyColor,
+              fillOpacity: 0.15,
+            }).addTo(map);
+
+            polygonLayer.bindPopup(`
+              <div style="font-family: sans-serif; font-size: 12px; color: #1e293b;">
+                <strong>${poly.name}</strong><br/>
+                <span style="font-size: 11px; text-transform: capitalize;">Category: ${poly.type.toUpperCase()}</span>
+              </div>
+            `);
+
+            polyCoords.forEach((coord) => bounds.extend(coord));
+          }
+        });
+      }
 
       // Add direct straight-line bearing path if provided
       if (path && path.length >= 2) {
@@ -195,7 +242,7 @@ export function MapView(props: MapViewProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, [markers, path, pathLabel]);
+  }, [markers, polygons, path, pathLabel]);
 
   return (
     <Card className="w-full overflow-hidden border bg-card text-card-foreground shadow-sm">
@@ -214,7 +261,7 @@ export function MapView(props: MapViewProps) {
             Leaflet / OSM
           </Badge>
           <JsonViewPopup
-            data={{ title, markers, path, pathLabel }}
+            data={{ title, markers, polygons, path, pathLabel }}
           />
         </div>
       </CardHeader>
@@ -224,23 +271,26 @@ export function MapView(props: MapViewProps) {
           className="h-[320px] w-full bg-muted/40 relative z-0"
           style={{ minHeight: "320px" }}
         />
-        {/* Minimal legend footer */}
+        {/* Clean legend footer */}
         <div className="flex flex-wrap items-center justify-between gap-2 p-2 px-3 bg-background/95 border-t text-[11px] text-muted-foreground">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-emerald-500 inline-block" /> Safe Harbor
+              <span className="size-2 rounded-full bg-blue-500 inline-block" /> Reference Location
             </span>
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-cyan-500 inline-block" /> PFZ Zone (simulated)
+              <span className="size-2 rounded-full bg-cyan-500 inline-block" /> PFZ Candidate
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-emerald-500 inline-block" /> Safe Harbor
             </span>
             {path && path.length >= 2 && (
               <span className="flex items-center gap-1">
-                <span className="w-3 h-0.5 border-t-2 border-dashed border-amber-500 inline-block" /> Direct Bearing Line
+                <span className="w-3 h-0.5 border-t-2 border-dashed border-amber-500 inline-block" /> Direct Vector
               </span>
             )}
           </div>
           <span className="text-[10px] text-muted-foreground/80">
-            Open-source OpenStreetMap Cartography
+            OpenStreetMap Verified Geospatial Telemetry
           </span>
         </div>
       </CardContent>

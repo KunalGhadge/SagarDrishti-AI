@@ -24,9 +24,21 @@ const FadeIn = memo(({ children }: PropsWithChildren) => {
 FadeIn.displayName = "FadeIn";
 
 export const WordByWordFadeIn = memo(({ children }: PropsWithChildren) => {
+  const isIndicScript = (text: string) => /[\u0900-\u0DFF]/.test(text);
+
   const childrens = [children]
     .flat()
-    .flatMap((child) => (isString(child) ? child.split(" ") : child));
+    .flatMap((child) => {
+      if (isString(child)) {
+        // If string contains Indic/Devanagari scripts (Marathi, Hindi, etc.), avoid destructive whitespace splitting
+        if (isIndicScript(child)) {
+          return [child];
+        }
+        return child.split(" ");
+      }
+      return child;
+    });
+
   return childrens.map((word, index) =>
     isString(word) ? <FadeIn key={index}>{word}</FadeIn> : word,
   );

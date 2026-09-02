@@ -4,8 +4,9 @@ import { JSONSchema7 } from "json-schema";
 import { jsonSchemaToZod } from "lib/json-schema-to-zod";
 import { safe } from "ts-safe";
 import { Agent, AgentSummary } from "app-types/agent";
-import { executeMarineCorePipeline } from "../pipeline/marine-pipeline";
 import { SAGARDRISHTI_PRESEEDED_AGENTS } from "lib/ai/marine-agents-seed";
+import { executeSpecialistAgentLoop, SpecialistExecutionResult } from "../specialist/specialist-executor";
+import { runOrchestratedWorkflow } from "../orchestrator";
 
 export interface DynamicAgentDelegationParams {
   query: string;
@@ -42,21 +43,11 @@ export const agentDelegationSchema: JSONSchema7 = {
   required: ["query"],
 };
 
-export interface CoastalZoneInfo {
-  name: string;
-  state: string;
-  harbor: string;
-  latitude: number;
-  longitude: number;
-  pfzCoordinates: { latitude: number; longitude: number };
-  pfzDistanceNM: number;
-  pfzBearing: string;
-}
-
 export function createMarineSupervisorTools(
   dataStream?: UIMessageStreamWriter,
   userLocation?: { latitude: number; longitude: number },
-  configuredAgents?: (Agent | AgentSummary)[]
+  configuredAgents?: (Agent | AgentSummary)[],
+  model?: any
 ): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
 
@@ -87,6 +78,36 @@ export function createMarineSupervisorTools(
     ? configuredAgents
     : SAGARDRISHTI_PRESEEDED_AGENTS;
 
+  // 3. Master Multi-Agent Planner & Orchestrator Tool
+  tools["execute_orchestrated_marine_plan"] = createTool({
+    description:
+      "Executes the full multi-agent orchestrated plan: discovers capabilities from PostgreSQL, schedules concurrent DAG tasks, evaluates specialist results, and produces comprehensive decision intelligence.",
+    inputSchema: z.object({
+      query: z.string().describe("User's maritime, fishing, weather, or navigational query"),
+      location: z.string().optional().describe("Target coastal city, harbor, or sector"),
+      coordinates: z
+        .object({
+          latitude: z.number(),
+          longitude: z.number(),
+        })
+        .optional()
+        .describe("Target geographic coordinates"),
+    }),
+    execute: async ({ query, location, coordinates }) => {
+      const effectiveCoords = coordinates || userLocation;
+      const result = await runOrchestratedWorkflow(
+        query,
+        agentList as (Agent | AgentSummary)[],
+        {
+          userLocation: effectiveCoords,
+          model,
+        }
+      );
+      return result;
+    },
+  });
+
+  // 4. Individual Dynamic Specialist Delegation Tools
   for (const agent of agentList) {
     // Exclude top-level orchestrator from delegation tools
     if (
@@ -108,120 +129,31 @@ export function createMarineSupervisorTools(
       execute: async ({ query, location, coordinates, specificParameters = {} }) => {
         return safe(async () => {
           const effectiveCoords = coordinates || userLocation;
-          const pipelineResult = await executeMarineCorePipeline(query, location, effectiveCoords);
-          const ep = pipelineResult.evidencePack;
-
-          // Dynamically format specialist response based on agent profile
-          const normalizedName = agent.name.toLowerCase();
-          let domainPayload: any = {};
-
-          if (normalizedName.includes("weather") || normalizedName.includes("cyclone")) {
-            domainPayload = {
-              weather: {
-                surfaceWindSpeed: `${ep.weather.surfaceWindSpeedKmph.value} km/h (${ep.weather.surfaceWindSpeedKmph.status})`,
-                windDirection: `${ep.weather.windDirectionDegrees.value}°`,
-                airTemperature: `${ep.weather.airTemperatureCelsius.value} °C (${ep.weather.airTemperatureCelsius.status})`,
-                atmosphericPressure: `${ep.weather.atmosphericPressureHpa.value} hPa (${ep.weather.atmosphericPressureHpa.status})`,
-                lightningRisk: ep.weather.lightningRisk.value,
-                activeCycloneAlert: ep.weather.activeCycloneAlert.value,
-              },
-              oceanState: {
-                significantWaveHeight: `${ep.oceanPhysics.significantWaveHeightMeters.value} m (${ep.oceanPhysics.significantWaveHeightMeters.status})`,
-                peakWavePeriod: `${ep.oceanPhysics.peakWavePeriodSeconds.value} s`,
-                waveSteepnessRatio: ep.oceanPhysics.waveSteepnessRatio.value,
-              },
-              safetySummary: {
-                riskIndex: ep.geospatialSafety.imoRiskIndex.value,
-                safetyBadge: ep.geospatialSafety.imoSafetyBadge.value,
-                smallCraftAdvisory: ep.geospatialSafety.smallCraftAdvisory.value,
-                reasoning: ep.geospatialSafety.riskReasoning.value,
-                hazardAuditTrail: ep.geospatialSafety.hazardAuditTrail.value,
-              },
-            };
-          } else if (normalizedName.includes("ocean") || normalizedName.includes("analytics") || normalizedName.includes("earth") || normalizedName.includes("pfz")) {
-            domainPayload = {
-              bioOptics: {
-                nearestPfzZone: {
-                  coordinates: ep.bioOptics.nearestPfzCoordinates.value,
-                  distanceNM: ep.bioOptics.nearestPfzDistanceNM.value,
-                  bearing: ep.bioOptics.nearestPfzBearing.value,
-                  status: ep.bioOptics.nearestPfzCoordinates.status,
-                },
-                seaSurfaceTemperature: `${ep.oceanPhysics.seaSurfaceTemperatureCelsius.value} °C (${ep.oceanPhysics.seaSurfaceTemperatureCelsius.status})`,
-                thermalGradientDegPer5Km: `${ep.bioOptics.horizontalSstGradientDegPer5Km.value} °C / 5km (${ep.bioOptics.horizontalSstGradientDegPer5Km.status})`,
-                chlorophyllConcentration: `${ep.bioOptics.chlorophyllConcentrationMgM3.value} mg/m³ (${ep.bioOptics.chlorophyllConcentrationMgM3.status})`,
-                isThermalFrontActive: ep.bioOptics.isThermalFrontActive.value,
-                reasoning: ep.bioOptics.insightReasoning.value,
-              },
-              oceanPhysics: {
-                significantWaveHeight: `${ep.oceanPhysics.significantWaveHeightMeters.value} m (${ep.oceanPhysics.significantWaveHeightMeters.status})`,
-                currentVelocity: `${ep.oceanPhysics.oceanCurrentVelocityMs.value} m/s (${ep.oceanPhysics.oceanCurrentVelocityMs.status})`,
-                currentDirection: `${ep.oceanPhysics.oceanCurrentDirectionDegrees.value}°`,
-              },
-            };
-          } else if (normalizedName.includes("safety") || normalizedName.includes("geospatial") || normalizedName.includes("enforcement")) {
-            domainPayload = {
-              geofencing: {
-                nearestImblName: ep.geospatialSafety.imblBoundaryName.value,
-                distanceToImblKm: `${ep.geospatialSafety.distanceToImblKm.value} km (${ep.geospatialSafety.distanceToImblKm.status})`,
-                isApproachingBorderAlert: ep.geospatialSafety.isApproachingBorderAlert.value,
-                nearestMpaName: ep.geospatialSafety.nearestMarineProtectedArea.value,
-                distanceToMpaKm: `${ep.geospatialSafety.distanceToMpaKm.value} km (${ep.geospatialSafety.distanceToMpaKm.status})`,
-                isInsideRestrictedMpa: ep.geospatialSafety.isInsideRestrictedMpa.value,
-              },
-              imoFsaAssessment: {
-                riskIndex: ep.geospatialSafety.imoRiskIndex.value,
-                safetyBadge: ep.geospatialSafety.imoSafetyBadge.value,
-                smallCraftAdvisory: ep.geospatialSafety.smallCraftAdvisory.value,
-                reasoning: ep.geospatialSafety.riskReasoning.value,
-                hazardAuditTrail: ep.geospatialSafety.hazardAuditTrail.value,
-              },
-            };
-          } else if (normalizedName.includes("emergency") || normalizedName.includes("sos") || normalizedName.includes("sar") || normalizedName.includes("rescue")) {
-            domainPayload = {
-              directSosResponse: pipelineResult.directSosResponse,
-              emergencyStatus: {
-                alertLevel: "🔴 CODE RED (CRITICAL MARITIME DISTRESS)",
-                icgHelpline: "1554 (Toll-Free, 24x7)",
-                vhfChannel: "Channel 16 (156.800 MHz)",
-                nearestSafeHarbor: ep.location.harbor.value,
-                coordinates: `${ep.location.latitude.value}°N, ${ep.location.longitude.value}°E`,
-              },
-              weather: {
-                windSpeed: `${ep.weather.surfaceWindSpeedKmph.value} km/h`,
-                waveHeight: `${ep.oceanPhysics.significantWaveHeightMeters.value} m`,
-              },
-            };
-          } else {
-            domainPayload = {
-              primarySummary: {
-                verdict: `${ep.geospatialSafety.imoSafetyBadge.value} (RI = ${ep.geospatialSafety.imoRiskIndex.value})`,
-                waveHeight: `${ep.oceanPhysics.significantWaveHeightMeters.value} m`,
-                windSpeed: `${ep.weather.surfaceWindSpeedKmph.value} km/h`,
-                harbor: ep.location.harbor.value,
-              },
-            };
-          }
-
-          return {
-            specialist: agent.name,
-            agentId: agent.id,
-            role: agentRole,
-            intentCategory: pipelineResult.intent,
-            location: {
-              zone: ep.location.coastalZone.value,
-              harbor: ep.location.harbor.value,
-              coordinates: `${ep.location.latitude.value}°N, ${ep.location.longitude.value}°E`,
+          const specialistResult: SpecialistExecutionResult = await executeSpecialistAgentLoop({
+            agent,
+            task: query,
+            context: {
+              location,
+              coordinates: effectiveCoords,
+              userLocation,
             },
-            ...domainPayload,
-            evidencePack: ep,
-          };
+            model,
+            dataStream,
+          });
+
+          return specialistResult;
         })
           .ifFail((err) => ({
-            specialist: agent.name,
             agentId: agent.id,
-            error: err.message,
+            specialistName: agent.name,
+            role: agentRole,
             status: "error" as const,
+            task: query,
+            findings: `Specialist execution failed: ${err.message}`,
+            toolCallsExecuted: [],
+            mountedTools: [],
+            unmountedConfiguredTools: [],
+            warnings: [err.message],
           }))
           .unwrap();
       },

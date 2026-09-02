@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const createMapViewTool = createTool({
   description:
-    "Render an interactive coastal map view with georeferenced maritime markers and optional direct bearing line using Leaflet and OpenStreetMap tiles. Call this whenever the user asks for a map, fishing zones, navigation points, coordinates, routes, or safe harbors.",
+    "Render an interactive coastal map view with georeferenced maritime markers, safe harbors, PFZ candidate zones, geofence polygons, and direct bearing lines using Leaflet and OpenStreetMap tiles. Call this whenever the user asks for a map, fishing zones, navigation points, coordinates, routes, or safe harbors.",
   inputSchema: z.object({
     title: z.string().optional().describe("Title for the map view card"),
     markers: z
@@ -14,14 +14,26 @@ export const createMapViewTool = createTool({
           label: z.string().describe("Marker popup label"),
           type: z
             .enum(["current", "hazard", "safe_zone", "pfz"])
-            .describe("Marker type classification"),
-          isSimulated: z
-            .boolean()
-            .optional()
-            .describe("Flag if coordinate is an oceanographic simulated baseline"),
+            .describe("Marker type classification: 'current' (user/vessel location), 'hazard' (danger/squall), 'safe_zone' (safe harbor), 'pfz' (verified potential fishing zone candidate)"),
         })
       )
       .describe("Array of georeferenced maritime markers"),
+    polygons: z
+      .array(
+        z.object({
+          name: z.string().describe("Name of the geofence zone"),
+          type: z.enum(["imbl", "mpa", "hazard", "safe"]).describe("Zone category"),
+          coordinates: z.array(
+            z.object({
+              lat: z.number(),
+              lon: z.number(),
+            })
+          ).describe("Array of polygon vertices"),
+          color: z.string().optional().describe("Optional hex color code"),
+        })
+      )
+      .optional()
+      .describe("Optional geofenced polygons or maritime boundaries"),
     path: z
       .array(
         z.object({

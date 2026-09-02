@@ -21,6 +21,7 @@ import { useTranslations } from "next-intl";
 import { TextShimmer } from "ui/text-shimmer";
 import { buildReturnUrl } from "lib/admin/navigation-utils";
 import { BackButton } from "@/components/layouts/back-button";
+import { toast } from "sonner";
 
 export function AppHeader() {
   const t = useTranslations();
@@ -103,13 +104,7 @@ export function AppHeader() {
                 variant={"ghost"}
                 className="bg-secondary/40"
                 onClick={() => {
-                  appStoreMutate((state) => ({
-                    voiceChat: {
-                      ...state.voiceChat,
-                      isOpen: true,
-                      agentId: undefined,
-                    },
-                  }));
+                  toast.info("Voice Chat is currently under construction. Text chat is available.");
                 }}
               >
                 <AudioWaveformIcon className="size-4" />

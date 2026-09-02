@@ -170,7 +170,10 @@ FINAL RESPONSE FORMAT (MANDATORY):
    createLineChart tools) — NOT the full Evidence Pack.
    * For MAP VIEW & VISUALIZATION: Whenever the user explicitly asks for a map (e.g. "show map", "give me map", "where on map", "visualize on map") OR for PFZ_LOCATION / SOS emergency:
      - You MUST invoke the createMapView tool in that response.
-     - For PFZ queries: departure harbor (type: "safe_zone") + nearest PFZ pin (type: "pfz", isSimulated: true).
+     - For PFZ queries:
+       * If user is on LAND: Explain "Your current location is on land, so I used it only as the reference point and searched nearby marine waters for potential fishing zones."
+       * Include user reference marker (type: "current") + verified marine PFZ candidate markers (type: "pfz") + departure harbor (type: "safe_zone").
+       * Never label the user's land marker as a PFZ.
      - For SOS Emergency:
        * If exact GPS coordinates provided: distress location (type: "hazard") + nearest safe harbor (type: "safe_zone") + direct bearing path line.
        * If place name provided without GPS: nearest safe harbor (type: "safe_zone") ONLY.

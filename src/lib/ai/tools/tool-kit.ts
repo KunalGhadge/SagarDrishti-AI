@@ -44,3 +44,67 @@ export const APP_DEFAULT_TOOL_KIT: Record<
   },
 };
 
+export function getFlatToolRegistry(extraTools?: Record<string, Tool>): Record<string, Tool> {
+  const flat: Record<string, Tool> = {};
+  for (const kit of Object.values(APP_DEFAULT_TOOL_KIT)) {
+    Object.assign(flat, kit);
+  }
+  if (extraTools) {
+    Object.assign(flat, extraTools);
+  }
+  return flat;
+}
+
+export function resolveToolsForAgent(
+  mentions?: any[],
+  extraTools?: Record<string, Tool>
+): {
+  mountedTools: Record<string, Tool>;
+  mountedToolNames: string[];
+  unmountedConfiguredTools: string[];
+  configuredToolNames: string[];
+} {
+  const allAvailableTools = getFlatToolRegistry(extraTools);
+  const mountedTools: Record<string, Tool> = {};
+  const mountedToolNames: string[] = [];
+  const unmountedConfiguredTools: string[] = [];
+  const configuredToolNames: string[] = [];
+
+  if (!mentions || mentions.length === 0) {
+    return {
+      mountedTools: allAvailableTools,
+      mountedToolNames: Object.keys(allAvailableTools),
+      unmountedConfiguredTools: [],
+      configuredToolNames: [],
+    };
+  }
+
+  for (const mention of mentions) {
+    const toolKey = mention.name;
+    if (mention.type === "defaultTool") {
+      configuredToolNames.push(toolKey);
+      if (allAvailableTools[toolKey]) {
+        mountedTools[toolKey] = allAvailableTools[toolKey];
+        mountedToolNames.push(toolKey);
+      } else {
+        unmountedConfiguredTools.push(toolKey);
+      }
+    } else if (mention.type === "mcpTool" && extraTools?.[toolKey]) {
+      configuredToolNames.push(toolKey);
+      mountedTools[toolKey] = extraTools[toolKey];
+      mountedToolNames.push(toolKey);
+    } else if (mention.type === "workflow" && extraTools?.[toolKey]) {
+      configuredToolNames.push(toolKey);
+      mountedTools[toolKey] = extraTools[toolKey];
+      mountedToolNames.push(toolKey);
+    }
+  }
+
+  return {
+    mountedTools,
+    mountedToolNames,
+    unmountedConfiguredTools,
+    configuredToolNames,
+  };
+}
+

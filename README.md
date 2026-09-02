@@ -120,5 +120,3 @@ Open [http://localhost:3000](http://localhost:3000) to access **SagarDrishti AI*
 * **Organization**: Indian Space Research Organisation (ISRO) / Department of Space
 * **Team**: **Team WE#**
 * **Repository**: [github.com/KunalGhadge/SagarDrishti-AI](https://github.com/KunalGhadge/SagarDrishti-AI)
-
-<!-- cache-bust -->

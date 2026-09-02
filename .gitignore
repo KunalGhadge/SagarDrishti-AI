@@ -60,3 +60,4 @@ local-data
 openai-compatible.config.ts
 certificates
 public/uploads
+scratch/
