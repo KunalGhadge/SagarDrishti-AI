@@ -510,6 +510,28 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             onStop={stop}
             onFocus={isFirstTime ? undefined : handleFocus}
           />
+
+          {emptyMessage && (
+            <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl mx-auto px-4 mt-3.5">
+              {[
+                { label: "🌊 Sea conditions near me", query: "Show me the current sea conditions near me" },
+                { label: "🐟 Find best fishing zones", query: "Find the best fishing zones near me" },
+                { label: "🛰️ SST & Chlorophyll", query: "Show SST and chlorophyll near my location" },
+                { label: "🛡️ Restricted maritime zones", query: "Are there any restricted maritime zones nearby?" },
+                { label: "🧭 Safe route to harbor", query: "Show me a safe route to the nearest harbor" },
+                { label: "🚨 Emergency & vessel in danger", query: "What should I do if my vessel is in danger?" },
+              ].map((item, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => sendMessage({ text: item.query })}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/60 hover:border-border transition-all cursor-pointer shadow-2xs"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <DeleteThreadPopup
           threadId={threadId}
