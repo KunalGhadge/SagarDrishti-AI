@@ -14,7 +14,7 @@ import {
   FileMessagePart,
   SourceUrlMessagePart,
 } from "./message-parts";
-import { ChevronDown, ChevronUp, TriangleAlertIcon } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp, Sparkles, TriangleAlertIcon } from "lucide-react";
 import { Button } from "ui/button";
 import { useTranslations } from "next-intl";
 import { ChatMetadata } from "app-types/chat";
@@ -210,16 +210,45 @@ export const ErrorMessage = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const maxLength = 200;
   const t = useTranslations();
+
+  const isModelError = useMemo(() => {
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes("model") ||
+      msg.includes("unreachable") ||
+      msg.includes("not found") ||
+      msg.includes("not exist") ||
+      msg.includes("access") ||
+      msg.includes("quota") ||
+      msg.includes("rate limit") ||
+      msg.includes("404") ||
+      msg.includes("403") ||
+      msg.includes("429") ||
+      msg.includes("provider") ||
+      msg.includes("overloaded")
+    );
+  }, [error.message]);
+
+  const handleOpenModelSelector = () => {
+    const selectorBtn = document.querySelector<HTMLButtonElement>(
+      '[data-testid="model-selector-button"]'
+    );
+    if (selectorBtn) {
+      selectorBtn.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      selectorBtn.click();
+    }
+  };
+
   return (
     <div className="w-full mx-auto max-w-3xl px-6 animate-in fade-in mt-4">
       <div className="flex flex-col gap-2">
-        <div className="flex flex-col gap-4 px-2 opacity-70">
+        <div className="flex flex-col gap-4 px-2">
           <div className="flex items-start gap-3">
-            <div className="p-1.5 bg-muted rounded-sm">
-              <TriangleAlertIcon className="h-3.5 w-3.5 text-destructive" />
+            <div className="p-1.5 bg-destructive/10 rounded-lg shrink-0 mt-0.5">
+              <TriangleAlertIcon className="h-4 w-4 text-destructive" />
             </div>
-            <div className="flex-1">
-              <p className="font-medium text-sm mb-2">{t("Chat.Error")}</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm mb-1 text-foreground">{t("Chat.Error")}</p>
               <div className="text-sm text-muted-foreground">
                 <div className="whitespace-pre-wrap">
                   {isExpanded
@@ -246,6 +275,33 @@ export const ErrorMessage = ({
                     )}
                   </Button>
                 )}
+
+                {isModelError && (
+                  <div className="mt-3 p-3 rounded-xl bg-muted/60 dark:bg-muted/40 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 not-italic">
+                    <div className="flex items-start sm:items-center gap-2 text-xs">
+                      <Sparkles className="size-4 text-primary shrink-0 mt-0.5 sm:mt-0" />
+                      <div>
+                        <p className="font-medium text-foreground">
+                          Model unavailable or restricted
+                        </p>
+                        <p className="text-muted-foreground text-[11px] mt-0.5">
+                          Change model using the button at the bottom-right of the prompt bar below.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleOpenModelSelector}
+                      className="rounded-full text-xs h-7 px-3 shrink-0 flex items-center gap-1.5 self-start sm:self-auto hover:bg-accent cursor-pointer"
+                    >
+                      <span>Switch Model</span>
+                      <ArrowRight className="size-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
+
                 <p className="text-xs text-muted-foreground mt-3 italic">
                   {t("Chat.thisMessageWasNotSavedPleaseTryTheChatAgain")}
                 </p>
