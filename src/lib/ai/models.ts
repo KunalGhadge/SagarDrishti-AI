@@ -25,9 +25,55 @@ const google = createGoogleGenerativeAI({
     process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY,
 });
 
+const groqKeys = [
+  process.env.GROQ_API_KEY,
+  process.env.GROQ_API_KEY_2,
+  process.env.GROQ_API_KEY_3,
+  process.env.GROQ_API_KEY_4,
+].filter((k): k is string => !!k && k !== "****" && !k.startsWith("your_"));
+
+let currentGroqKeyIndex = 0;
+
+const groqFetch: typeof fetch = async (input, init) => {
+  if (groqKeys.length <= 1) {
+    return fetch(input, init);
+  }
+
+  const baseHeaders = new Headers(init?.headers);
+  const totalKeys = groqKeys.length;
+  const startIndex = currentGroqKeyIndex;
+
+  for (let attempt = 0; attempt < totalKeys; attempt++) {
+    const activeIndex = (startIndex + attempt) % totalKeys;
+    const activeKey = groqKeys[activeIndex];
+
+    const requestHeaders = new Headers(baseHeaders);
+    requestHeaders.set("Authorization", `Bearer ${activeKey}`);
+
+    const response = await fetch(input, {
+      ...init,
+      headers: requestHeaders,
+    });
+
+    // Only failover to the next key on genuine rate/quota exhaustion (HTTP 429)
+    if (response.status === 429 && attempt < totalKeys - 1) {
+      currentGroqKeyIndex = (activeIndex + 1) % totalKeys;
+      continue;
+    }
+
+    currentGroqKeyIndex = activeIndex;
+    return response;
+  }
+
+  const finalHeaders = new Headers(baseHeaders);
+  finalHeaders.set("Authorization", `Bearer ${groqKeys[currentGroqKeyIndex]}`);
+  return fetch(input, { ...init, headers: finalHeaders });
+};
+
 const groq = createGroq({
   baseURL: process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1",
-  apiKey: process.env.GROQ_API_KEY,
+  apiKey: groqKeys[0] || process.env.GROQ_API_KEY,
+  fetch: groqFetch,
 });
 
 const staticModels = {
@@ -59,11 +105,8 @@ const staticModels = {
     "grok-3-mini": xai("grok-3-mini"),
   },
   groq: {
-    "kimi-k2-instruct": groq("moonshotai/kimi-k2-instruct"),
-    "llama-4-scout-17b": groq("meta-llama/llama-4-scout-17b-16e-instruct"),
-    "gpt-oss-20b": groq("openai/gpt-oss-20b"),
-    "gpt-oss-120b": groq("openai/gpt-oss-120b"),
-    "qwen3-32b": groq("qwen/qwen3-32b"),
+    "llama-3.3-70b-versatile": groq("llama-3.3-70b-versatile"),
+    "llama-3.1-8b-instant": groq("llama-3.1-8b-instant"),
   },
   openRouter: {
     "gpt-oss-20b:free": openrouter("openai/gpt-oss-20b:free"),
@@ -231,7 +274,11 @@ function checkProviderAPIKey(provider: keyof typeof staticModels) {
       key = process.env.XAI_API_KEY;
       break;
     case "groq":
-      key = process.env.GROQ_API_KEY;
+      key =
+        process.env.GROQ_API_KEY ||
+        process.env.GROQ_API_KEY_2 ||
+        process.env.GROQ_API_KEY_3 ||
+        process.env.GROQ_API_KEY_4;
       break;
     case "openRouter":
       key = process.env.OPENROUTER_API_KEY;
