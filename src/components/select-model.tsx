@@ -79,7 +79,9 @@ export const SelectModel = (props: PropsWithChildren<SelectModelProps>) => {
           />
           <CommandList className="p-2">
             <CommandEmpty>No results found.</CommandEmpty>
-            {providers?.map((provider, i) => (
+            {providers
+              ?.filter((p) => p.provider !== "ollama" && p.provider !== "local")
+              .map((provider, i) => (
               <Fragment key={provider.provider}>
                 <CommandGroup
                   heading={

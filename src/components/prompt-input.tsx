@@ -511,7 +511,7 @@ export default function PromptInput({
                   />
                 )}
 
-                <div className="flex-1 flex items-center min-w-0 overflow-hidden">
+                <div className="flex-1 flex items-center min-w-0">
                   {userLocation ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -520,15 +520,19 @@ export default function PromptInput({
                           variant="ghost"
                           size="sm"
                           onClick={requestLocation}
-                          className="h-6 text-[11px] px-2 py-0 rounded-full font-mono text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/70 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900 flex items-center gap-1 shrink-0 max-w-[85px] sm:max-w-none"
+                          className="h-7 px-2 rounded-full text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 shrink-0 hover:bg-accent/60 transition-colors"
                         >
-                          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                          <Navigation className="size-2.5 fill-sky-500 text-sky-500 shrink-0" />
-                          <span className="truncate hidden sm:inline">{userLocation.latitude.toFixed(2)}°N, {userLocation.longitude.toFixed(2)}°E</span>
-                          <span className="sm:hidden text-[10px] font-semibold">GPS</span>
+                          <span className="relative flex size-2 shrink-0">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
+                          </span>
+                          <Navigation className="size-3.5 text-sky-500 fill-sky-500/20 shrink-0" />
+                          <span className="font-mono text-[11px] hidden md:inline text-foreground/80">
+                            {userLocation.latitude.toFixed(2)}°N, {userLocation.longitude.toFixed(2)}°E
+                          </span>
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Live Device GPS Active ({userLocation.latitude.toFixed(2)}°N, {userLocation.longitude.toFixed(2)}°E)</TooltipContent>
+                      <TooltipContent>Live GPS Active: {userLocation.latitude.toFixed(4)}°N, {userLocation.longitude.toFixed(4)}°E (Click to refresh)</TooltipContent>
                     </Tooltip>
                   ) : (
                     <Tooltip>
@@ -538,14 +542,15 @@ export default function PromptInput({
                           variant="ghost"
                           size="sm"
                           onClick={requestLocation}
-                          className="h-6 text-[11px] px-2 py-0 rounded-full text-muted-foreground hover:text-foreground flex items-center gap-1 hover:bg-accent shrink-0"
+                          className="h-7 px-2 rounded-full text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 shrink-0 hover:bg-accent/60 transition-colors"
                         >
-                          <Navigation className="size-2.5 shrink-0" />
-                          <span className="hidden sm:inline">{isLocating ? "Locating..." : "Enable GPS"}</span>
-                          <span className="sm:hidden">{isLocating ? "..." : "GPS"}</span>
+                          <Navigation className="size-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-[11px] hidden md:inline">
+                            {isLocating ? "Locating..." : "GPS"}
+                          </span>
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Enable browser live device GPS for maritime telemetry</TooltipContent>
+                      <TooltipContent>Enable live device GPS for maritime telemetry</TooltipContent>
                     </Tooltip>
                   )}
                 </div>
@@ -554,19 +559,19 @@ export default function PromptInput({
                   <Button
                     variant={"ghost"}
                     size={"sm"}
-                    className="rounded-full group data-[state=open]:bg-input! hover:bg-input! mr-1 max-w-[120px] sm:max-w-[200px] shrink-0 min-w-0"
+                    className="rounded-full group data-[state=open]:bg-input! hover:bg-input! mr-1 max-w-[125px] sm:max-w-[200px] shrink-0 min-w-0 flex items-center gap-1.5"
                     data-testid="model-selector-button"
                   >
                     {chatModel?.model ? (
                       <>
                         {chatModel.provider === "openai" ? (
-                          <OpenAIIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100 shrink-0" />
+                          <OpenAIIcon className="size-3.5 shrink-0" />
                         ) : chatModel.provider === "xai" ? (
-                          <GrokIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100 shrink-0" />
+                          <GrokIcon className="size-3.5 shrink-0" />
                         ) : chatModel.provider === "anthropic" ? (
-                          <ClaudeIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100 shrink-0" />
+                          <ClaudeIcon className="size-3.5 shrink-0" />
                         ) : chatModel.provider === "google" ? (
-                          <GeminiIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100 shrink-0" />
+                          <GeminiIcon className="size-3.5 shrink-0" />
                         ) : null}
                         <span
                           className="text-foreground group-data-[state=open]:text-foreground truncate max-w-[70px] sm:max-w-[150px]"

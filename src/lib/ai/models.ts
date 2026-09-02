@@ -1,6 +1,5 @@
 import "server-only";
 
-import { createOllama } from "ollama-ai-provider-v2";
 import { openai } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { anthropic } from "@ai-sdk/anthropic";
@@ -24,10 +23,6 @@ import {
 const google = createGoogleGenerativeAI({
   apiKey:
     process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY,
-});
-
-const ollama = createOllama({
-  baseURL: process.env.OLLAMA_BASE_URL || "http://localhost:11434/api",
 });
 
 const groq = createGroq({
@@ -63,11 +58,6 @@ const staticModels = {
     "grok-4-1": xai("grok-4-1"),
     "grok-3-mini": xai("grok-3-mini"),
   },
-  ollama: {
-    "gemma3:1b": ollama("gemma3:1b"),
-    "gemma3:4b": ollama("gemma3:4b"),
-    "gemma3:12b": ollama("gemma3:12b"),
-  },
   groq: {
     "kimi-k2-instruct": groq("moonshotai/kimi-k2-instruct"),
     "llama-4-scout-17b": groq("meta-llama/llama-4-scout-17b-16e-instruct"),
@@ -88,9 +78,6 @@ const staticModels = {
 
 const staticUnsupportedModels = new Set([
   staticModels.openai["o4-mini"],
-  staticModels.ollama["gemma3:1b"],
-  staticModels.ollama["gemma3:4b"],
-  staticModels.ollama["gemma3:12b"],
   staticModels.openRouter["gpt-oss-20b:free"],
   staticModels.openRouter["qwen3-8b:free"],
   staticModels.openRouter["qwen3-14b:free"],
@@ -207,16 +194,18 @@ function getFallbackModel(): LanguageModel {
 }
 
 export const customModelProvider = {
-  modelsInfo: Object.entries(allModels).map(([provider, models]) => ({
-    provider,
-    models: Object.entries(models).map(([name, model]) => ({
-      name,
-      isToolCallUnsupported: isToolCallUnsupportedModel(model),
-      isImageInputUnsupported: isImageInputUnsupportedModel(model),
-      supportedFileMimeTypes: [...getFilePartSupportedMimeTypes(model)],
+  modelsInfo: Object.entries(allModels)
+    .filter(([provider]) => provider !== "ollama" && provider !== "local")
+    .map(([provider, models]) => ({
+      provider,
+      models: Object.entries(models).map(([name, model]) => ({
+        name,
+        isToolCallUnsupported: isToolCallUnsupportedModel(model),
+        isImageInputUnsupported: isImageInputUnsupportedModel(model),
+        supportedFileMimeTypes: [...getFilePartSupportedMimeTypes(model)],
+      })),
+      hasAPIKey: checkProviderAPIKey(provider as keyof typeof staticModels),
     })),
-    hasAPIKey: checkProviderAPIKey(provider as keyof typeof staticModels),
-  })),
   getModel: (model?: ChatModel): LanguageModel => {
     const fallback = getFallbackModel();
     if (!model) return fallback;
