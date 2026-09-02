@@ -105,8 +105,9 @@ const staticModels = {
     "grok-3-mini": xai("grok-3-mini"),
   },
   groq: {
-    "llama-3.3-70b-versatile": groq("llama-3.3-70b-versatile"),
-    "llama-3.1-8b-instant": groq("llama-3.1-8b-instant"),
+    "gpt-oss-120b": groq("openai/gpt-oss-120b"),
+    "gpt-oss-20b": groq("openai/gpt-oss-20b"),
+    "qwen3.6-27b": groq("qwen/qwen3.6-27b"),
   },
   openRouter: {
     "gpt-oss-20b:free": openrouter("openai/gpt-oss-20b:free"),
