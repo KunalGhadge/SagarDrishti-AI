@@ -2,6 +2,8 @@ import { generateText, stepCountIs, LanguageModel, UIMessageStreamWriter } from 
 import { Agent, AgentSummary } from "app-types/agent";
 import { resolveToolsForAgent } from "../tools/tool-kit";
 import { customModelProvider } from "../models";
+import { safeParseToolArguments } from "../tool-repair";
+import { generateWithProvider } from "../central-model-router";
 
 export interface SpecialistExecutionInput {
   agent: Agent | AgentSummary | any;
@@ -125,7 +127,7 @@ Please use your dynamically mounted tools to retrieve necessary data, perform an
 
             executedToolCalls.push({
               toolName: tcAny.toolName,
-              args: tcAny.args || tcAny.parameters || tcAny.input || {},
+              args: safeParseToolArguments(tcAny.args || tcAny.parameters || tcAny.input || {}),
               result: rawOutput,
             });
           }
@@ -148,20 +150,47 @@ Please use your dynamically mounted tools to retrieve necessary data, perform an
       warnings,
     };
   } catch (llmError: any) {
-    console.error(`[SPECIALIST AGENT ERROR] [${agent.name}]:`, llmError.message);
-    return {
-      agentId: agent.id,
-      specialistName: agent.name,
-      role: agentRole,
-      status: "error",
-      task,
-      findings: `Specialist LLM execution failed: ${llmError.message}`,
-      toolCallsExecuted: [],
-      mountedTools: mountedToolNames,
-      unmountedConfiguredTools,
-      llmInvoked: true,
-      llmSteps: 0,
-      warnings: [...warnings, llmError.message],
-    };
+    console.warn(`[SPECIALIST AGENT WARN] [${agent.name}]: Primary generation failed (${llmError.message}). Attempting centralized failover.`);
+    try {
+      const failoverResult = await generateWithProvider({
+        system: systemPrompt,
+        prompt: fullUserPrompt,
+        messages: [{ role: "user", content: fullUserPrompt }],
+        tools: mountedTools,
+        maxSteps,
+        requireTools: Object.keys(mountedTools).length > 0,
+      });
+
+      return {
+        agentId: agent.id,
+        specialistName: agent.name,
+        role: agentRole,
+        status: "success",
+        task,
+        findings: failoverResult.text || "Specialist analysis completed via failover router.",
+        toolCallsExecuted: failoverResult.toolCallsExecuted,
+        mountedTools: mountedToolNames,
+        unmountedConfiguredTools,
+        llmInvoked: true,
+        llmSteps: failoverResult.toolCallsExecuted.length + 1,
+        warnings: [...warnings, ...failoverResult.warnings],
+      };
+    } catch (fallbackError: any) {
+      console.error(`[SPECIALIST AGENT ERROR] [${agent.name}]: All model attempts failed:`, fallbackError.message);
+      return {
+        agentId: agent.id,
+        specialistName: agent.name,
+        role: agentRole,
+        status: "error",
+        task,
+        findings: `Specialist LLM execution failed: ${fallbackError.message}`,
+        toolCallsExecuted: [],
+        mountedTools: mountedToolNames,
+        unmountedConfiguredTools,
+        llmInvoked: true,
+        llmSteps: 0,
+        warnings: [...warnings, fallbackError.message],
+      };
+    }
   }
 }

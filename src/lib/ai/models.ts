@@ -19,62 +19,132 @@ import {
   ANTHROPIC_FILE_MIME_TYPES,
   XAI_FILE_MIME_TYPES,
 } from "./file-support";
+import {
+  keyPoolManager,
+  GEMINI_CONFIGURED_NEW_MODEL,
+  GEMINI_CONFIGURED_OLD_MODEL,
+} from "./provider-config";
+import globalLogger from "logger";
+import { colorize } from "consola/utils";
 
-const google = createGoogleGenerativeAI({
-  apiKey:
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY,
+const logger = globalLogger.withDefaults({
+  message: colorize("magenta", `[ProviderModels]: `),
 });
 
-const groqKeys = [
-  process.env.GROQ_API_KEY,
-  process.env.GROQ_API_KEY_2,
-  process.env.GROQ_API_KEY_3,
-  process.env.GROQ_API_KEY_4,
-].filter((k): k is string => !!k && k !== "****" && !k.startsWith("your_"));
+// ---------------------------------------------------------------------------
+// 1. Multi-Key Gemini Fetch Interceptor (Zero Leakage, Seamless Failover)
+// ---------------------------------------------------------------------------
 
-let currentGroqKeyIndex = 0;
-
-const groqFetch: typeof fetch = async (input, init) => {
-  if (groqKeys.length <= 1) {
+const geminiFetch: typeof fetch = async (input, init) => {
+  const totalKeys = keyPoolManager.getGeminiKeyCount();
+  if (totalKeys <= 1) {
     return fetch(input, init);
   }
 
   const baseHeaders = new Headers(init?.headers);
-  const totalKeys = groqKeys.length;
-  const startIndex = currentGroqKeyIndex;
 
   for (let attempt = 0; attempt < totalKeys; attempt++) {
-    const activeIndex = (startIndex + attempt) % totalKeys;
-    const activeKey = groqKeys[activeIndex];
+    const activeKeyInfo = keyPoolManager.getActiveGeminiKey();
+    const activeKey = activeKeyInfo?.key;
 
     const requestHeaders = new Headers(baseHeaders);
-    requestHeaders.set("Authorization", `Bearer ${activeKey}`);
+    if (activeKey) {
+      requestHeaders.set("x-goog-api-key", activeKey);
+    }
+
+    let urlInput = input;
+    if (typeof input === "string" && activeKey) {
+      if (input.includes("key=")) {
+        urlInput = input.replace(/([?&]key=)[^&]+/, `$1${activeKey}`);
+      }
+    }
+
+    const response = await fetch(urlInput, {
+      ...init,
+      headers: requestHeaders,
+    });
+
+    // Detect 429 Rate Limit / Quota Exhaustion or 503 Overloaded
+    if ((response.status === 429 || response.status === 503) && attempt < totalKeys - 1) {
+      const rotated = keyPoolManager.rotateGeminiKey(`HTTP ${response.status}`);
+      logger.warn(
+        `Gemini API returned ${response.status}. Automatically failing over to ${rotated?.maskedId || "next key"} (attempt ${attempt + 1}/${totalKeys})`
+      );
+      continue;
+    }
+
+    return response;
+  }
+
+  return fetch(input, init);
+};
+
+const initialGeminiKey =
+  keyPoolManager.getActiveGeminiKey()?.key ||
+  process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+  process.env.GEMINI_API_KEY ||
+  "dummy_gemini_key_for_init";
+
+const google = createGoogleGenerativeAI({
+  apiKey: initialGeminiKey,
+  fetch: geminiFetch,
+});
+
+// ---------------------------------------------------------------------------
+// 2. Multi-Key Groq Fetch Interceptor (Zero Leakage, Seamless Failover)
+// ---------------------------------------------------------------------------
+
+const groqFetch: typeof fetch = async (input, init) => {
+  const totalKeys = keyPoolManager.getGroqKeyCount();
+  if (totalKeys <= 1) {
+    return fetch(input, init);
+  }
+
+  const baseHeaders = new Headers(init?.headers);
+
+  for (let attempt = 0; attempt < totalKeys; attempt++) {
+    const activeKeyInfo = keyPoolManager.getActiveGroqKey();
+    const activeKey = activeKeyInfo?.key;
+
+    const requestHeaders = new Headers(baseHeaders);
+    if (activeKey) {
+      requestHeaders.set("Authorization", `Bearer ${activeKey}`);
+    }
 
     const response = await fetch(input, {
       ...init,
       headers: requestHeaders,
     });
 
-    // Only failover to the next key on genuine rate/quota exhaustion (HTTP 429)
-    if (response.status === 429 && attempt < totalKeys - 1) {
-      currentGroqKeyIndex = (activeIndex + 1) % totalKeys;
+    // Only failover on genuine rate/quota exhaustion (HTTP 429) or service unavailable (HTTP 503)
+    if ((response.status === 429 || response.status === 503) && attempt < totalKeys - 1) {
+      const rotated = keyPoolManager.rotateGroqKey(`HTTP ${response.status}`);
+      logger.warn(
+        `Groq API returned ${response.status}. Automatically failing over to ${rotated?.maskedId || "next key"} (attempt ${attempt + 1}/${totalKeys})`
+      );
       continue;
     }
 
-    currentGroqKeyIndex = activeIndex;
     return response;
   }
 
-  const finalHeaders = new Headers(baseHeaders);
-  finalHeaders.set("Authorization", `Bearer ${groqKeys[currentGroqKeyIndex]}`);
-  return fetch(input, { ...init, headers: finalHeaders });
+  return fetch(input, init);
 };
+
+const initialGroqKey =
+  keyPoolManager.getActiveGroqKey()?.key ||
+  process.env.GROQ_API_KEY ||
+  "dummy_groq_key_for_init";
 
 const groq = createGroq({
   baseURL: process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1",
-  apiKey: groqKeys[0] || process.env.GROQ_API_KEY,
+  apiKey: initialGroqKey,
   fetch: groqFetch,
 });
+
+// ---------------------------------------------------------------------------
+// 3. Static Models Definition (Including Old & New Gemini Models)
+// ---------------------------------------------------------------------------
 
 const staticModels = {
   openai: {
@@ -88,11 +158,18 @@ const staticModels = {
     "gpt-5.1-codex-mini": openai("gpt-5.1-codex-mini"),
   },
   google: {
+    // New Gemini Models (2.5 & 2.0 with reasoning and state-of-the-art vision)
     "gemini-2.5-flash": google("gemini-2.5-flash"),
     "gemini-2.5-pro": google("gemini-2.5-pro"),
     "gemini-2.0-flash": google("gemini-2.0-flash"),
+
+    // Old Gemini Models (1.5 stable workhorses)
     "gemini-1.5-pro": google("gemini-1.5-pro"),
     "gemini-1.5-flash": google("gemini-1.5-flash"),
+
+    // Configured Aliases for Dynamic Environment Selection
+    "gemini-new": google(GEMINI_CONFIGURED_NEW_MODEL),
+    "gemini-old": google(GEMINI_CONFIGURED_OLD_MODEL),
   },
   anthropic: {
     "sonnet-4.5": anthropic("claude-sonnet-4-5"),
@@ -127,6 +204,7 @@ const staticUnsupportedModels = new Set([
   staticModels.openRouter["qwen3-14b:free"],
   staticModels.openRouter["deepseek-r1:free"],
   staticModels.openRouter["gemini-2.0-flash-exp:free"],
+  staticModels.groq["qwen3.6-27b"], // Gated from tool calling for stability
 ]);
 
 const staticSupportImageInputModels = {
@@ -154,9 +232,6 @@ registerFileSupport(
   staticModels.openai["gpt-4.1-mini"],
   OPENAI_FILE_MIME_TYPES,
 );
-registerFileSupport(staticModels.openai["gpt-5"], OPENAI_FILE_MIME_TYPES);
-registerFileSupport(staticModels.openai["gpt-5-mini"], OPENAI_FILE_MIME_TYPES);
-registerFileSupport(staticModels.openai["gpt-5-nano"], OPENAI_FILE_MIME_TYPES);
 
 registerFileSupport(
   staticModels.google["gemini-2.5-flash"],
@@ -176,6 +251,14 @@ registerFileSupport(
 );
 registerFileSupport(
   staticModels.google["gemini-1.5-flash"],
+  GEMINI_FILE_MIME_TYPES,
+);
+registerFileSupport(
+  staticModels.google["gemini-new"],
+  GEMINI_FILE_MIME_TYPES,
+);
+registerFileSupport(
+  staticModels.google["gemini-old"],
   GEMINI_FILE_MIME_TYPES,
 );
 
@@ -226,7 +309,12 @@ export const getFilePartSupportedMimeTypes = (model: LanguageModel) => {
 
 function getFallbackModel(): LanguageModel {
   if (checkProviderAPIKey("google")) {
-    return staticModels.google["gemini-2.5-flash"];
+    const configuredNew = staticModels.google[GEMINI_CONFIGURED_NEW_MODEL as keyof typeof staticModels.google];
+    if (configuredNew) return configuredNew;
+    return staticModels.google["gemini-2.5-flash"] || staticModels.google["gemini-1.5-flash"];
+  }
+  if (checkProviderAPIKey("groq")) {
+    return staticModels.groq["gpt-oss-120b"] || staticModels.groq["gpt-oss-20b"];
   }
   if (checkProviderAPIKey("openai")) {
     return staticModels.openai["gpt-4.1"];
@@ -257,17 +345,14 @@ export const customModelProvider = {
   },
 };
 
-function checkProviderAPIKey(provider: keyof typeof staticModels) {
+export function checkProviderAPIKey(provider: keyof typeof staticModels) {
   let key: string | undefined;
   switch (provider) {
     case "openai":
       key = process.env.OPENAI_API_KEY;
       break;
     case "google":
-      key =
-        process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
-      break;
-
+      return keyPoolManager.getGeminiKeyCount() > 0;
     case "anthropic":
       key = process.env.ANTHROPIC_API_KEY;
       break;
@@ -275,12 +360,7 @@ function checkProviderAPIKey(provider: keyof typeof staticModels) {
       key = process.env.XAI_API_KEY;
       break;
     case "groq":
-      key =
-        process.env.GROQ_API_KEY ||
-        process.env.GROQ_API_KEY_2 ||
-        process.env.GROQ_API_KEY_3 ||
-        process.env.GROQ_API_KEY_4;
-      break;
+      return keyPoolManager.getGroqKeyCount() > 0;
     case "openRouter":
       key = process.env.OPENROUTER_API_KEY;
       break;

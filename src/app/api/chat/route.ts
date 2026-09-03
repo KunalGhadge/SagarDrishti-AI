@@ -10,6 +10,8 @@ import {
 } from "ai";
 
 import { customModelProvider, isToolCallUnsupportedModel } from "lib/ai/models";
+import { sanitizeToolsForGroq } from "lib/ai/tool-repair";
+import { getModelCapabilities, GEMINI_CONFIGURED_NEW_MODEL } from "lib/ai/provider-config";
 
 import { agentRepository, chatRepository } from "lib/db/repository";
 import globalLogger from "logger";
@@ -78,7 +80,25 @@ export async function POST(request: Request) {
       userLocation,
     } = chatApiSchemaRequestBodySchema.parse(json);
 
-    const model = customModelProvider.getModel(chatModel);
+    let activeChatModel = chatModel;
+    const requestedCapability = getModelCapabilities(
+      chatModel?.provider || "google",
+      chatModel?.model || GEMINI_CONFIGURED_NEW_MODEL,
+    );
+
+    const requiresTools = (mentions && mentions.length > 0) || toolChoice !== "none";
+    if (requiresTools && !requestedCapability.supportsToolCalling) {
+      logger.warn(
+        `Requested model ${chatModel?.provider}/${chatModel?.model} does not support tool calling. Routing to tool-capable model.`
+      );
+      if (chatModel?.provider === "groq") {
+        activeChatModel = { provider: "groq", model: "gpt-oss-120b" };
+      } else {
+        activeChatModel = { provider: "google", model: GEMINI_CONFIGURED_NEW_MODEL };
+      }
+    }
+
+    const model = customModelProvider.getModel(activeChatModel);
 
     let thread = await chatRepository.selectThreadDetails(id);
 
@@ -327,13 +347,18 @@ export async function POST(request: Request) {
         }
         logger.info(`model: ${chatModel?.provider}/${chatModel?.model}`);
 
+        const toolsToBind =
+          activeChatModel?.provider === "groq"
+            ? sanitizeToolsForGroq(vercelAITooles)
+            : vercelAITooles;
+
         const result = streamText({
           model,
           system: systemPrompt,
           messages: convertToModelMessages(messages),
           experimental_transform: smoothStream({ chunking: "word" }),
           maxRetries: 2,
-          tools: vercelAITooles,
+          tools: toolsToBind,
           stopWhen: stepCountIs(10),
           toolChoice: "auto",
           abortSignal: request.signal,
