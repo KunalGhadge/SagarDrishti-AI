@@ -1,6 +1,19 @@
 import { Agent } from "app-types/agent";
 import { DefaultToolName } from "lib/ai/tools";
 
+export const SLUG_TO_UUID_MAP: Record<string, string> = {
+  "marine-planner-orchestrator": "10000000-0000-4000-8000-000000000001",
+  "weather-cyclone-agent": "10000000-0000-4000-8000-000000000002",
+  "ocean-analytics-agent": "10000000-0000-4000-8000-000000000003",
+  "maritime-safety-agent": "10000000-0000-4000-8000-000000000004",
+  "emergency-sos-agent": "10000000-0000-4000-8000-000000000005",
+  "presentation-synthesis-agent": "10000000-0000-4000-8000-000000000006",
+};
+
+export const UUID_TO_SLUG_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(SLUG_TO_UUID_MAP).map(([slug, uuid]) => [uuid, slug])
+);
+
 export const SAGARDRISHTI_PRESEEDED_AGENTS: Omit<Agent, "createdAt" | "updatedAt">[] = [
   {
     id: "marine-planner-orchestrator",

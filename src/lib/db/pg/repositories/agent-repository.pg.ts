@@ -3,20 +3,13 @@ import { pgDb as db } from "../db.pg";
 import { AgentTable, BookmarkTable, UserTable } from "../schema.pg";
 import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { generateUUID } from "lib/utils";
-import { SAGARDRISHTI_PRESEEDED_AGENTS } from "lib/ai/marine-agents-seed";
+import {
+  SAGARDRISHTI_PRESEEDED_AGENTS,
+  SLUG_TO_UUID_MAP,
+  UUID_TO_SLUG_MAP,
+} from "lib/ai/marine-agents-seed";
 
-export const SLUG_TO_UUID_MAP: Record<string, string> = {
-  "marine-planner-orchestrator": "10000000-0000-4000-8000-000000000001",
-  "weather-cyclone-agent": "10000000-0000-4000-8000-000000000002",
-  "ocean-analytics-agent": "10000000-0000-4000-8000-000000000003",
-  "maritime-safety-agent": "10000000-0000-4000-8000-000000000004",
-  "emergency-sos-agent": "10000000-0000-4000-8000-000000000005",
-  "presentation-synthesis-agent": "10000000-0000-4000-8000-000000000006",
-};
-
-export const UUID_TO_SLUG_MAP: Record<string, string> = Object.fromEntries(
-  Object.entries(SLUG_TO_UUID_MAP).map(([slug, uuid]) => [uuid, slug])
-);
+export { SLUG_TO_UUID_MAP, UUID_TO_SLUG_MAP };
 
 function resolveAgentUuid(id: string): string {
   return SLUG_TO_UUID_MAP[id] || id;

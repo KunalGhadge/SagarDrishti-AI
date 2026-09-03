@@ -29,21 +29,113 @@ import { ChatMention } from "app-types/chat";
 import { BACKGROUND_COLORS, EMOJI_DATA } from "lib/const";
 import { cn } from "lib/utils";
 import { canCreateAgent } from "lib/auth/client-permissions";
+import {
+  SAGARDRISHTI_PRESEEDED_AGENTS,
+  SLUG_TO_UUID_MAP,
+  UUID_TO_SLUG_MAP,
+} from "lib/ai/marine-agents-seed";
+import { AgentSummary } from "app-types/agent";
 
 const DISPLAY_LIMIT = 5; // Number of agents to show when collapsed
+
+const DEFAULT_SYSTEM_AGENTS: AgentSummary[] = SAGARDRISHTI_PRESEEDED_AGENTS.map(
+  (agent) => ({
+    id: SLUG_TO_UUID_MAP[agent.id] || agent.id,
+    name: agent.name,
+    description: agent.description,
+    icon: agent.icon,
+    userId: agent.userId || "system",
+    visibility: (agent.visibility || "public") as any,
+    isBookmarked: false,
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+  })
+);
+
+const PRESEEDED_ID_SET = new Set<string>([
+  ...Object.keys(SLUG_TO_UUID_MAP),
+  ...Object.values(SLUG_TO_UUID_MAP),
+  ...SAGARDRISHTI_PRESEEDED_AGENTS.map((a) => a.id),
+]);
+
+function isDefaultAgent(agent: { id: string; name?: string }): boolean {
+  if (!agent) return false;
+  if (PRESEEDED_ID_SET.has(agent.id)) return true;
+  return SAGARDRISHTI_PRESEEDED_AGENTS.some(
+    (p) => p.name.toLowerCase() === (agent.name || "").toLowerCase()
+  );
+}
 
 export function AppSidebarAgents({ userRole }: { userRole?: string | null }) {
   const mounted = useMounted();
   const t = useTranslations();
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
-  const { bookmarkedAgents, myAgents, isLoading, sharedAgents } = useAgents({
+  const {
+    bookmarkedAgents,
+    myAgents,
+    isLoading,
+    sharedAgents,
+    agents: allFetchedAgents = [],
+  } = useAgents({
     limit: 50,
   }); // Increase limit since we're not artificially limiting display
 
   const agents = useMemo(() => {
-    return [...myAgents, ...bookmarkedAgents];
-  }, [bookmarkedAgents, myAgents]);
+    const list: AgentSummary[] = [];
+    const seenIds = new Set<string>();
+
+    const normalize = (id: string) => {
+      return SLUG_TO_UUID_MAP[id] || UUID_TO_SLUG_MAP[id] || id;
+    };
+
+    const add = (agent: AgentSummary) => {
+      if (!agent || !agent.id) return;
+      const key1 = agent.id;
+      const key2 = normalize(agent.id);
+      const nameKey = agent.name ? agent.name.toLowerCase().trim() : undefined;
+      if (
+        seenIds.has(key1) ||
+        seenIds.has(key2) ||
+        (nameKey && seenIds.has(nameKey))
+      ) {
+        return;
+      }
+      seenIds.add(key1);
+      seenIds.add(key2);
+      if (nameKey) seenIds.add(nameKey);
+      list.push(agent);
+    };
+
+    // 1. Any user-created custom agents (created by this user, non-default)
+    for (const a of myAgents) {
+      if (!isDefaultAgent(a)) {
+        add(a);
+      }
+    }
+
+    // 2. All fetched agents from API (which includes the DB-seeded default public agents in their DB order)
+    for (const a of allFetchedAgents) {
+      add(a);
+    }
+
+    // 3. Fallback: Always guarantee all 6 default system agents exist (even if DB is cold, offline, or loading)
+    for (const p of DEFAULT_SYSTEM_AGENTS) {
+      add(p);
+    }
+
+    // 4. Any user bookmarked agents
+    for (const a of bookmarkedAgents) {
+      add(a);
+    }
+
+    // 5. Any remaining myAgents
+    for (const a of myAgents) {
+      add(a);
+    }
+
+    return list;
+  }, [allFetchedAgents, myAgents, bookmarkedAgents]);
 
   const handleAgentClick = useCallback(
     (id: string) => {
@@ -104,9 +196,9 @@ export function AppSidebarAgents({ userRole }: { userRole?: string | null }) {
                 {t("Layout.agents")}
               </Link>
             </SidebarMenuButton>
-            {canCreateAgent(userRole) && (
+            {canCreateAgent(userRole ?? "editor") && (
               <SidebarMenuAction
-                className="group-hover/agents:opacity-100 opacity-0 transition-opacity"
+                className="opacity-100 hover:bg-sidebar-accent transition-colors"
                 onClick={() => router.push("/agent/new")}
                 data-testid="sidebar-create-agent-button"
               >
@@ -122,7 +214,7 @@ export function AppSidebarAgents({ userRole }: { userRole?: string | null }) {
             )}
           </SidebarMenuItem>
 
-          {isLoading ? (
+          {isLoading && agents.length === 0 ? (
             <SidebarMenuItem>
               {Array.from({ length: 2 }).map(
                 (_, index) => mounted && <SidebarMenuSkeleton key={index} />,
