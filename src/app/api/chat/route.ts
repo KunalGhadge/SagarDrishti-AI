@@ -22,6 +22,7 @@ import {
 } from "lib/ai/prompts";
 import { cookies } from "next/headers";
 import { COOKIE_KEY_LOCALE } from "lib/const";
+import { detectInputLanguage, DetectedLanguageResult } from "lib/ai/language/detector";
 import {
   chatApiSchemaRequestBodySchema,
   ChatMention,
@@ -216,11 +217,38 @@ export async function POST(request: Request) {
       (toolChoice != "none" || mentions.length > 0) &&
       !useImageTool;
 
+    // --- Lightweight Language Understanding Layer (Fail-Open) ---
+    let detectedInputLanguage: DetectedLanguageResult | undefined;
+    try {
+      const rawUserText = message.parts
+        ?.filter((part: any) => part?.type === "text")
+        .map((part: any) => part?.text)
+        .join(" ") || "";
+
+      if (rawUserText.trim()) {
+        detectedInputLanguage = detectInputLanguage(rawUserText);
+        logger.info(
+          `Language Understanding: detected="${detectedInputLanguage.languageName}" (${detectedInputLanguage.language}) confidence=${detectedInputLanguage.confidence} isMixed=${detectedInputLanguage.isMixed}`,
+        );
+      }
+    } catch (langErr) {
+      logger.warn("Language detection failed-open:", langErr);
+      detectedInputLanguage = undefined;
+    }
+
     const metadata: ChatMetadata = {
       agentId: agent?.id,
       toolChoice: toolChoice,
       toolCount: 0,
       chatModel: chatModel,
+      detectedLanguage: detectedInputLanguage
+        ? {
+            language: detectedInputLanguage.language,
+            languageName: detectedInputLanguage.languageName,
+            confidence: detectedInputLanguage.confidence,
+            isMixed: detectedInputLanguage.isMixed,
+          }
+        : undefined,
     };
 
     const stream = createUIMessageStream({
@@ -295,7 +323,14 @@ export async function POST(request: Request) {
         const currentLocale = cookieStore.get(COOKIE_KEY_LOCALE)?.value || "en";
 
         const systemPrompt = mergeSystemPrompt(
-          buildUserSystemPrompt(session.user, userPreferences, agent, currentLocale, userLocation),
+          buildUserSystemPrompt(
+            session.user,
+            userPreferences,
+            agent,
+            currentLocale,
+            userLocation,
+            detectedInputLanguage,
+          ),
           buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations),
           !supportToolCall && buildToolCallUnsupportedModelSystemPrompt,
         );

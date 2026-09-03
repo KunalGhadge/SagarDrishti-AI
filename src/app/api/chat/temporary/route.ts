@@ -9,6 +9,7 @@ import { customModelProvider } from "lib/ai/models";
 import globalLogger from "logger";
 import { buildUserSystemPrompt } from "lib/ai/prompts";
 import { getUserPreferences } from "lib/user/server";
+import { detectInputLanguage, DetectedLanguageResult } from "lib/ai/language/detector";
 
 import { colorize } from "consola/utils";
 
@@ -38,9 +39,24 @@ export async function POST(request: Request) {
     const userPreferences =
       (await getUserPreferences(session.user.id)) || undefined;
 
+    let detectedInputLanguage: DetectedLanguageResult | undefined;
+    try {
+      const lastUserMessage = messages.filter((m) => m.role === "user").at(-1);
+      const rawUserText =
+        lastUserMessage?.parts
+          ?.filter((p: any) => p?.type === "text")
+          .map((p: any) => p?.text)
+          .join(" ") || "";
+      if (rawUserText.trim()) {
+        detectedInputLanguage = detectInputLanguage(rawUserText);
+      }
+    } catch {
+      detectedInputLanguage = undefined;
+    }
+
     return streamText({
       model,
-      system: `${buildUserSystemPrompt(session.user, userPreferences)} ${
+      system: `${buildUserSystemPrompt(session.user, userPreferences, undefined, undefined, undefined, detectedInputLanguage)} ${
         instructions ? `\n\n${instructions}` : ""
       }`.trim(),
       messages: convertToModelMessages(messages),

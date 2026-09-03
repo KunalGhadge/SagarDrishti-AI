@@ -48,6 +48,8 @@ ${toolsList}
 CRITICAL: Generate all output content in the same language as the user's request. Be specific and comprehensive. Proactively seek clarification if requirements are ambiguous. Your output should enable the new agent to operate autonomously and reliably within its domain.`.trim();
 };
 
+import { DetectedLanguageResult } from "./language/detector";
+
 export const SUPPORTED_LANGUAGE_NAMES: Record<string, string> = {
   mr: "Marathi (मराठी)",
   hi: "Hindi (हिन्दी)",
@@ -58,6 +60,8 @@ export const SUPPORTED_LANGUAGE_NAMES: Record<string, string> = {
   ml: "Malayalam (മലയാളം)",
   kn: "Kannada (ಕನ್ನಡ)",
   or: "Odia (ଓଡ଼ିଆ)",
+  pa: "Punjabi (ਪੰਜਾਬੀ)",
+  ur: "Urdu (اردو)",
   en: "English",
 };
 
@@ -67,6 +71,7 @@ export const buildUserSystemPrompt = (
   agent?: Agent,
   locale?: string,
   userLocation?: { latitude: number; longitude: number; accuracy?: number },
+  detectedInputLanguage?: DetectedLanguageResult,
 ) => {
   const assistantName =
     agent?.name || userPreferences?.botName || "SagarDrishti AI";
@@ -96,10 +101,26 @@ ${
 - You MUST write your ENTIRE final response, explanation, markdown tables, conclusion, and follow-up question in pure ENGLISH.
 - NEVER switch to Hindi, Marathi, or any Devanagari script when English is selected.`
     : `- The user's active language is ${activeLangName.toUpperCase()}.
-- REGARDLESS OF USER INPUT (even if the user typed in English or romanized script), you MUST generate your entire conversational text, explanation, conclusion, and follow-up natively in ${activeLangName}.`
+- REGARDLESS OF USER INPUT (even if the user typed in English, Hindi, Gujarati, or any other language), you MUST generate your entire conversational text, explanation, conclusion, and follow-up natively in ${activeLangName}.`
 }
 - Regardless of language, keep coordinates (°N, °E), units (km/h, m, °C, hPa, NM, km), and safety badges (🟢 CODE GREEN, 🟡 CODE YELLOW, 🟠 CODE ORANGE, 🔴 CODE RED) untranslated and crisp.
 </language_enforcement>`;
+
+  if (detectedInputLanguage) {
+    prompt += `
+
+<multilingual_understanding>
+INPUT & OUTPUT LANGUAGE MAPPING DIRECTIVE:
+- Detected User Query Input Language: ${detectedInputLanguage.languageName} (${detectedInputLanguage.language})${detectedInputLanguage.isMixed ? " [Mixed / Code-switched query with English or technical terms]" : ""} [Confidence: ${Math.round(detectedInputLanguage.confidence * 100)}%]
+- Authoritative Target Response Language: ${activeLangName} (${locale || "en"})
+
+OPERATIONAL RULES:
+1. SEMANTIC INPUT COMPREHENSION: The user typed in ${detectedInputLanguage.languageName}. Fully interpret the question, intent, and domain entities natively as expressed in ${detectedInputLanguage.languageName}.
+2. MANDATORY OUTPUT LANGUAGE ENFORCEMENT: Regardless of what language the user typed in (${detectedInputLanguage.languageName}), your final response MUST be delivered 100% in the user's selected output language: ${activeLangName}. NEVER reply in ${detectedInputLanguage.languageName} if it differs from ${activeLangName}. The user's selected target language ALWAYS takes priority.
+3. DOMAIN ENTITY INTEGRITY: Maintain exact port names, vessel names, coordinates, units, IMD/INCOIS source attributions, and safety badges (🟢 CODE GREEN, 🟡 CODE YELLOW, 🟠 CODE ORANGE, 🔴 CODE RED) unaltered.
+4. DETERMINISTIC SAFETY COUPLING: All safety advice, geofencing warnings, and weather risks must strictly follow verified calculations and tool outputs, regardless of language.
+</multilingual_understanding>`;
+  }
 
   // Agent-specific instructions as primary core
   if (agent?.instructions?.systemPrompt) {
@@ -202,9 +223,10 @@ GROUNDING & ZERO-HALLUCINATION LAWS (STRICT):
    - If the tool reports wind speed as 9.7 km/h, you MUST write exactly 9.7 km/h. NEVER alter, recalculate, round differently, or invent a different number.
 
 3. 🌐 MULTILINGUAL RESPONSE LAW:
-   - If the user query is in English or English locale is active: Output MUST be 100% in English. Never use Hindi/Devanagari by default.
-   - If the user queried in a regional language (Marathi, Hindi, Gujarati, Tamil, etc.) or selected that locale: Respond natively in that selected language.
-   - Keep numbers, units (km/h, m, °C, hPa, NM, km), and safety badges (🟢 CODE GREEN, 🟡 CODE YELLOW, 🟠 CODE ORANGE, 🔴 CODE RED) clear and untranslated.
+   - SELECTED OUTPUT LANGUAGE HAS ABSOLUTE PRIORITY: If the user selected a target language (e.g. Marathi), ALWAYS formulate your entire final response natively in that selected language, even if the user typed their question in Hindi, English, Gujarati, or Hinglish.
+   - If English is selected or active: Output MUST be 100% in English.
+   - If no explicit language was selected: Respond natively in the language detected from the user's query.
+   - Keep numbers, units (km/h, m, °C, hPa, NM, km), coordinates, and safety badges (🟢 CODE GREEN, 🟡 CODE YELLOW, 🟠 CODE ORANGE, 🔴 CODE RED) clear and untranslated.
 
 4. ⚓ DETERMINISTIC RISK & INSIGHT ENGINE:
    - Quote the official reasoning and exact safety badge from the IMO FSA / INCOIS engines:
