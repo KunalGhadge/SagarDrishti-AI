@@ -62,6 +62,7 @@ export function VesselSecurityPanel() {
     weather,
     cyclone,
     incident,
+    incidentWorkflow,
     activeAlerts,
     polygons,
     requestLocation,
@@ -300,9 +301,26 @@ EMERGENCY CONTACT CHANNELS:
                       <AlertOctagon className="size-4 animate-ping text-red-500" />
                       {incident.title}
                     </CardTitle>
-                    <Badge variant="destructive" className="text-[10px] uppercase font-mono tracking-wider">
-                      {incident.incidentId}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      {incidentWorkflow?.stage === "OPERATOR_CONFIRMED_INTENTIONAL" && (
+                        <Badge variant="outline" className="text-[10px] font-mono border-emerald-500 text-emerald-600 dark:text-emerald-400">
+                          INTENTIONAL ACKNOWLEDGED
+                        </Badge>
+                      )}
+                      {incidentWorkflow?.stage === "BREACH_COUNTDOWN" && (
+                        <Badge variant="outline" className="text-[10px] font-mono border-amber-500 text-amber-600 dark:text-amber-400 animate-pulse">
+                          INTENT PENDING
+                        </Badge>
+                      )}
+                      {incidentWorkflow?.stage === "UNRESPONSIVE_ESCALATED" && (
+                        <Badge variant="destructive" className="text-[10px] font-mono">
+                          SOLAS ESCALATED
+                        </Badge>
+                      )}
+                      <Badge variant="destructive" className="text-[10px] uppercase font-mono tracking-wider">
+                        {incident.incidentId}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="px-3.5 pt-3 pb-3 text-xs flex flex-col gap-3">

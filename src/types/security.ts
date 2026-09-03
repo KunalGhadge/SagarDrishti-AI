@@ -93,6 +93,32 @@ export interface ActiveAlert {
   affectedLocation: string;
 }
 
+export type AutonomousIncidentStage =
+  | "IDLE"
+  | "BREACH_COUNTDOWN"
+  | "OPERATOR_CONFIRMED_INTENTIONAL"
+  | "UNRESPONSIVE_ESCALATED"
+  | "SOS_TRIGGERED";
+
+export interface AutonomousIncidentWorkflow {
+  isActive: boolean;
+  incidentId: string | null;
+  stage: AutonomousIncidentStage;
+  countdownDeadline: number | null;
+  zoneName: string;
+  coordinates: { lat: number; lon: number };
+  speedKts: number | null;
+  headingDeg: number | null;
+  nearestPort: string;
+  portDistanceNM: number;
+  returnBearing: string;
+  weatherSummary: string;
+  detectedAt: string;
+  acknowledgedAt?: string;
+  escalatedAt?: string;
+  timeline: IncidentTimelineEntry[];
+}
+
 export interface OverallSecurityState {
   overallLevel: SecurityLevel;
   telemetry: VesselTelemetry;
@@ -101,4 +127,5 @@ export interface OverallSecurityState {
   cyclone: CycloneConditionState;
   incident: IncidentState;
   activeAlerts: ActiveAlert[];
+  incidentWorkflow: AutonomousIncidentWorkflow;
 }

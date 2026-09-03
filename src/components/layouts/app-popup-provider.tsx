@@ -1,6 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { appStore } from "@/app/store";
 
 const KeyboardShortcutsPopup = dynamic(
   () =>
@@ -74,6 +77,26 @@ export function AppPopupProvider({
 }: {
   userSettingsComponent: React.ReactNode;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const incidentWorkflow = appStore((state) => state.incidentWorkflow);
+  const navigatedBreachIdRef = useRef<string | null>(null);
+
+  // Autonomous Incident Navigation: Bring operator to safety chat immediately upon breach
+  useEffect(() => {
+    if (
+      incidentWorkflow?.isActive &&
+      incidentWorkflow.stage === "BREACH_COUNTDOWN" &&
+      incidentWorkflow.incidentId &&
+      navigatedBreachIdRef.current !== incidentWorkflow.incidentId
+    ) {
+      navigatedBreachIdRef.current = incidentWorkflow.incidentId;
+      if (pathname !== "/" && !pathname.startsWith("/chat/")) {
+        router.push("/");
+      }
+    }
+  }, [incidentWorkflow?.isActive, incidentWorkflow?.stage, incidentWorkflow?.incidentId, pathname, router]);
+
   return (
     <>
       <KeyboardShortcutsPopup />

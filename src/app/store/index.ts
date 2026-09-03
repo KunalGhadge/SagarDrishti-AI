@@ -7,6 +7,7 @@ import { WorkflowSummary } from "app-types/workflow";
 import { AppDefaultToolkit } from "lib/ai/tools";
 import { AgentSummary } from "app-types/agent";
 import { ArchiveWithItemCount } from "app-types/archive";
+import { AutonomousIncidentWorkflow } from "@/types/security";
 
 export interface UploadedFile {
   id: string;
@@ -59,6 +60,7 @@ export interface AppState {
   securityPanel: {
     isOpen: boolean;
   };
+  incidentWorkflow: AutonomousIncidentWorkflow;
   voiceChat: {
     isOpen: boolean;
     agentId?: string;
@@ -73,6 +75,23 @@ export interface AppState {
 export interface AppDispatch {
   mutate: (state: Mutate<AppState>) => void;
 }
+
+export const initialIncidentWorkflow: AutonomousIncidentWorkflow = {
+  isActive: false,
+  incidentId: null,
+  stage: "IDLE",
+  countdownDeadline: null,
+  zoneName: "",
+  coordinates: { lat: 0, lon: 0 },
+  speedKts: null,
+  headingDeg: null,
+  nearestPort: "",
+  portDistanceNM: 0,
+  returnBearing: "",
+  weatherSummary: "",
+  detectedAt: "",
+  timeline: [],
+};
 
 const initialState: AppState = {
   threadList: [],
@@ -108,6 +127,7 @@ const initialState: AppState = {
   securityPanel: {
     isOpen: false,
   },
+  incidentWorkflow: initialIncidentWorkflow,
   voiceChat: {
     isOpen: false,
     options: {
@@ -145,6 +165,8 @@ export const appStore = create<AppState & AppDispatch>()(
         securityPanel: {
           isOpen: false,
         },
+        incidentWorkflow:
+          state.incidentWorkflow || initialIncidentWorkflow,
         toolPresets: state.toolPresets || initialState.toolPresets,
         voiceChat: {
           ...initialState.voiceChat,

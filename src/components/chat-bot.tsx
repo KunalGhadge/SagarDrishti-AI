@@ -66,6 +66,16 @@ const Particles = dynamic(() => import("ui/particles"), {
   ssr: false,
 });
 
+const AutonomousIncidentSafetyCard = dynamic(
+  () =>
+    import("@/components/autonomous-incident-safety-card").then(
+      (mod) => mod.AutonomousIncidentSafetyCard,
+    ),
+  {
+    ssr: false,
+  },
+);
+
 const debounce = createDebounce();
 
 const firstTimeStorage = getStorageManager("IS_FIRST");
@@ -435,6 +445,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             </div>
           </div>
         )}
+        <AutonomousIncidentSafetyCard />
         {emptyMessage ? (
           <ChatGreeting />
         ) : (

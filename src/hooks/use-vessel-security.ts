@@ -11,14 +11,14 @@ import {
   WeatherConditionState,
   CycloneConditionState,
   IncidentState,
-  IncidentTimelineEntry,
   ActiveAlert,
 } from "@/types/security";
 import { toast } from "sonner";
 import { INDIAN_COASTAL_ANCHORS } from "@/lib/ai/pipeline/marine-pipeline";
+import { appStore } from "@/app/store";
+import { useShallow } from "zustand/shallow";
 
 const WEATHER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes polling cache
-const VIOLATION_INCIDENT_THRESHOLD_MS = 60 * 1000; // 1 minute in restricted zone triggers potential incident
 
 function getCardinalDirection(deg: number | null): string {
   if (deg == null || isNaN(deg)) return "Unavailable";
@@ -29,6 +29,10 @@ function getCardinalDirection(deg: number | null): string {
 
 export function useVesselSecurity() {
   const { location, isWatching, requestLocation, error: gpsError } = useUserLocation();
+
+  const [incidentWorkflow, appStoreMutate] = appStore(
+    useShallow((state) => [state.incidentWorkflow, state.mutate])
+  );
 
   // In-memory track history (stores real observed positions)
   const trackHistoryRef = useRef<Array<{ timestamp: number; lat: number; lon: number; speed: number | null; heading: number | null }>>([]);
@@ -198,109 +202,166 @@ export function useVesselSecurity() {
     };
   }, []);
 
-  // 4. Incident State Machine & Real Timeline History
-  const breachStartTimeRef = useRef<number | null>(null);
-  const [incidentDurationSec, setIncidentDurationSec] = useState<number>(0);
-  const [incidentId, setIncidentId] = useState<string | null>(null);
-  const timelineHistoryRef = useRef<IncidentTimelineEntry[]>([]);
-
-  // Monitor timeline events based on actual transitions
-  const prevGeofenceStatusRef = useRef<string>("SAFE");
-
+  // 4. Autonomous Incident Workflow Trigger on Geofence Breach
   useEffect(() => {
-    const currentStatus = geofenceEval.status;
-    const nowTime = new Date().toLocaleTimeString();
+    if (geofenceEval.status === "BREACH") {
+      if (!incidentWorkflow || incidentWorkflow.stage === "IDLE") {
+        const breachId = `INC-IND-${Math.floor(100000 + Math.random() * 900000)}`;
+        const detectedTime = new Date().toLocaleTimeString();
 
-    if (currentStatus !== prevGeofenceStatusRef.current) {
-      if (currentStatus === "APPROACHING") {
-        timelineHistoryRef.current.push({
-          timestamp: nowTime,
-          event: `Boundary Advisory: Approaching ${geofenceEval.nearestZoneName} (${geofenceEval.distanceToBoundaryKm} km)`,
-          severity: "WARNING",
+        appStoreMutate({
+          incidentWorkflow: {
+            isActive: true,
+            incidentId: breachId,
+            stage: "BREACH_COUNTDOWN",
+            countdownDeadline: Date.now() + 60000, // 60 seconds from real clock
+            zoneName: geofenceEval.nearestZoneName,
+            coordinates: { lat: activeCoords.latitude, lon: activeCoords.longitude },
+            speedKts: activeCoords.speed,
+            headingDeg: activeCoords.heading,
+            nearestPort: geofenceEval.nearestSafeHarbor.name,
+            portDistanceNM: geofenceEval.nearestSafeHarbor.distanceNM,
+            returnBearing: geofenceEval.returnBearing,
+            weatherSummary: weatherState.summary,
+            detectedAt: detectedTime,
+            timeline: [
+              {
+                timestamp: detectedTime,
+                event: `Boundary Breach: Crossed into ${geofenceEval.nearestZoneName}`,
+                severity: "CRITICAL",
+              },
+              {
+                timestamp: detectedTime,
+                event: "Autonomous 60-Second Operator Intent Confirmation Countdown initiated",
+                severity: "WARNING",
+              },
+            ],
+          },
         });
-      } else if (currentStatus === "CRITICAL_PROXIMITY") {
-        timelineHistoryRef.current.push({
-          timestamp: nowTime,
-          event: `Critical Buffer Warning: Within 25 km of ${geofenceEval.nearestZoneName}`,
-          severity: "WARNING",
-        });
-      } else if (currentStatus === "BREACH") {
-        timelineHistoryRef.current.push({
-          timestamp: nowTime,
-          event: `Boundary Breach: Crossed into ${geofenceEval.nearestZoneName}`,
-          severity: "CRITICAL",
-        });
-      } else if (currentStatus === "SAFE" && prevGeofenceStatusRef.current !== "SAFE") {
-        timelineHistoryRef.current.push({
-          timestamp: nowTime,
-          event: "Vessel confirmed inside authorized coastal sailing waters",
-          severity: "INFO",
+
+        toast.error(`🚨 MARITIME SAFETY ALERT: Boundary Breach in ${geofenceEval.nearestZoneName}`, {
+          duration: 9000,
         });
       }
-      prevGeofenceStatusRef.current = currentStatus;
     }
-  }, [geofenceEval.status, geofenceEval.nearestZoneName, geofenceEval.distanceToBoundaryKm]);
+  }, [
+    geofenceEval.status,
+    geofenceEval.nearestZoneName,
+    geofenceEval.returnBearing,
+    geofenceEval.nearestSafeHarbor,
+    activeCoords,
+    weatherState.summary,
+    incidentWorkflow,
+    appStoreMutate,
+  ]);
+
+  // Operator Action 1: Intentional Movement
+  const confirmIntentional = useCallback(() => {
+    const nowTime = new Date().toLocaleTimeString();
+    appStoreMutate((prev) => ({
+      incidentWorkflow: {
+        ...prev.incidentWorkflow,
+        stage: "OPERATOR_CONFIRMED_INTENTIONAL",
+        acknowledgedAt: nowTime,
+        timeline: [
+          ...prev.incidentWorkflow.timeline,
+          {
+            timestamp: nowTime,
+            event: "Operator confirmed intentional movement; automatic SOS escalation cancelled",
+            severity: "INFO",
+          },
+        ],
+      },
+    }));
+    toast.success("Movement acknowledged by operator. Automatic SOS escalation cancelled.");
+  }, [appStoreMutate]);
+
+  // Operator Action 2: Emergency SOS Trigger
+  const triggerEmergencySos = useCallback(() => {
+    const nowTime = new Date().toLocaleTimeString();
+    appStoreMutate((prev) => ({
+      incidentWorkflow: {
+        ...prev.incidentWorkflow,
+        stage: "SOS_TRIGGERED",
+        timeline: [
+          ...prev.incidentWorkflow.timeline,
+          {
+            timestamp: nowTime,
+            event: "Operator triggered Emergency SOS / SAR Maritime Rescue",
+            severity: "CRITICAL",
+          },
+        ],
+      },
+    }));
+    toast.error("🚨 Emergency SOS Workflow Activated — Authority Dispatch Prepared");
+  }, [appStoreMutate]);
+
+  // Reset Incident Workflow
+  const resetIncidentWorkflow = useCallback(() => {
+    appStoreMutate({
+      incidentWorkflow: {
+        isActive: false,
+        incidentId: null,
+        stage: "IDLE",
+        countdownDeadline: null,
+        zoneName: "",
+        coordinates: { lat: 0, lon: 0 },
+        speedKts: null,
+        headingDeg: null,
+        nearestPort: "",
+        portDistanceNM: 0,
+        returnBearing: "",
+        weatherSummary: "",
+        detectedAt: "",
+        timeline: [],
+      },
+    });
+  }, [appStoreMutate]);
+
+  // 5. Incident State Machine & Real Timeline History
+  const breachStartTimeRef = useRef<number | null>(null);
+  const [incidentDurationSec, setIncidentDurationSec] = useState<number>(0);
 
   useEffect(() => {
     if (geofenceEval.isInsideRestrictedZone) {
       if (!breachStartTimeRef.current) {
         breachStartTimeRef.current = Date.now();
-        const randId = `INC-IND-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
-        setIncidentId(randId);
       }
       const interval = setInterval(() => {
         if (breachStartTimeRef.current) {
           const elapsed = Math.floor((Date.now() - breachStartTimeRef.current) / 1000);
           setIncidentDurationSec(elapsed);
-
-          // Escalate timeline milestones at exact seconds
-          if (elapsed === 30) {
-            timelineHistoryRef.current.push({
-              timestamp: new Date().toLocaleTimeString(),
-              event: "Persistent Breach Monitoring: Dwell time in restricted zone > 30 seconds",
-              severity: "CRITICAL",
-            });
-          } else if (elapsed === 60) {
-            timelineHistoryRef.current.push({
-              timestamp: new Date().toLocaleTimeString(),
-              event: "Unresponsive Kinematic Anomaly declared: Continued restricted dwell without course reversal",
-              severity: "CRITICAL",
-            });
-          }
         }
       }, 1000);
       return () => clearInterval(interval);
     } else {
       breachStartTimeRef.current = null;
       setIncidentDurationSec(0);
-      setIncidentId(null);
     }
   }, [geofenceEval.isInsideRestrictedZone]);
 
   const incidentState: IncidentState = useMemo(() => {
     const isBreach = geofenceEval.isInsideRestrictedZone;
     const durationMins = parseFloat((incidentDurationSec / 60).toFixed(1));
-    const isPersistent = isBreach && incidentDurationSec >= VIOLATION_INCIDENT_THRESHOLD_MS / 1000;
+    const isEscalated = incidentWorkflow?.stage === "UNRESPONSIVE_ESCALATED" || incidentWorkflow?.stage === "SOS_TRIGGERED";
 
-    if (isBreach) {
+    if (isBreach || isEscalated) {
       return {
         isIncident: true,
-        incidentId: incidentId || "INC-IND-ACTIVE",
-        severity: isPersistent ? "CRITICAL_INCIDENT" : "ELEVATED",
-        title: isPersistent
+        incidentId: incidentWorkflow?.incidentId || "INC-IND-ACTIVE",
+        severity: isEscalated ? "CRITICAL_INCIDENT" : "ELEVATED",
+        title: isEscalated
           ? "POTENTIAL MARITIME INCIDENT / KINEMATIC ANOMALY"
           : "RESTRICTED MARITIME ZONE BREACH",
-        description: isPersistent
-          ? `Vessel has remained inside the restricted zone for ${Math.floor(incidentDurationSec / 60)} minutes without confirmed course reversal toward safe waters.`
+        description: isEscalated
+          ? `Vessel has remained inside the restricted zone without operator response. Autonomous SOLAS SOS protocol escalated.`
           : `Vessel has crossed into ${geofenceEval.nearestZoneName}. Immediate course correction required.`,
-        detectionTimestamp: breachStartTimeRef.current
-          ? new Date(breachStartTimeRef.current).toLocaleTimeString()
-          : new Date().toLocaleTimeString(),
+        detectionTimestamp: incidentWorkflow?.detectedAt || new Date().toLocaleTimeString(),
         durationMinutes: durationMins,
         breachCoordinates: { lat: activeCoords.latitude, lon: activeCoords.longitude },
         violatedZone: geofenceEval.nearestZoneName,
         recommendedAction: `Execute immediate heading reversal to ${geofenceEval.returnBearing} toward ${geofenceEval.nearestSafeHarbor.name}`,
-        timeline: [...timelineHistoryRef.current],
+        timeline: incidentWorkflow?.timeline || [],
         emergencyChannels: {
           indianCoastGuardHelpline: "1554 (Toll-Free, 24x7)",
           marineVhfRadio: "VHF Channel 16 (156.800 MHz)",
@@ -320,16 +381,16 @@ export function useVesselSecurity() {
       breachCoordinates: null,
       violatedZone: null,
       recommendedAction: null,
-      timeline: [...timelineHistoryRef.current],
+      timeline: incidentWorkflow?.timeline || [],
       emergencyChannels: {
         indianCoastGuardHelpline: "1554 (Toll-Free, 24x7)",
         marineVhfRadio: "VHF Channel 16 (156.800 MHz)",
         coastalPolice: "1093",
       },
     };
-  }, [geofenceEval, incidentDurationSec, incidentId, activeCoords.latitude, activeCoords.longitude]);
+  }, [geofenceEval, incidentDurationSec, incidentWorkflow, activeCoords.latitude, activeCoords.longitude]);
 
-  // 5. Active Alerts List (Generated strictly from REAL monitored data)
+  // 6. Active Alerts List (Generated strictly from REAL monitored data)
   const activeAlerts: ActiveAlert[] = useMemo(() => {
     const list: ActiveAlert[] = [];
     const now = Date.now();
@@ -343,7 +404,7 @@ export function useVesselSecurity() {
         description: incidentState.description || "Zone breach detected",
         timestamp: breachStartTimeRef.current || now,
         timeAgo: `${incidentState.durationMinutes} min ago`,
-        source: "Kinematic Anomaly & Geofence Engine",
+        source: "Autonomous Safety Workflow & Geofence Engine",
         affectedLocation: geofenceEval.nearestZoneName,
       });
     } else if (geofenceEval.status === "CRITICAL_PROXIMITY") {
@@ -403,9 +464,16 @@ export function useVesselSecurity() {
     return list;
   }, [incidentState, geofenceEval, weatherState]);
 
-  // 6. Overall Security Status (Derived strictly from real conditions)
+  // 7. Overall Security Status (Derived strictly from real conditions)
   const overallLevel: SecurityLevel = useMemo(() => {
-    if (incidentState.isIncident || weatherState.status === "CRITICAL" || cycloneState.status === "CRITICAL") {
+    if (
+      incidentWorkflow?.stage === "BREACH_COUNTDOWN" ||
+      incidentWorkflow?.stage === "UNRESPONSIVE_ESCALATED" ||
+      incidentWorkflow?.stage === "SOS_TRIGGERED" ||
+      incidentState.isIncident ||
+      weatherState.status === "CRITICAL" ||
+      cycloneState.status === "CRITICAL"
+    ) {
       return "CRITICAL";
     }
     if (
@@ -417,9 +485,9 @@ export function useVesselSecurity() {
       return "WARNING";
     }
     return "SAFE";
-  }, [incidentState.isIncident, weatherState.status, cycloneState.status, geofenceEval.status]);
+  }, [incidentWorkflow?.stage, incidentState.isIncident, weatherState.status, cycloneState.status, geofenceEval.status]);
 
-  // 7. Proactive Toast Notification on Status Escalation
+  // 8. Proactive Toast Notification on Status Escalation
   const prevLevelRef = useRef<SecurityLevel>("SAFE");
   useEffect(() => {
     if (prevLevelRef.current === overallLevel) return;
@@ -463,9 +531,13 @@ export function useVesselSecurity() {
     weather: weatherState,
     cyclone: cycloneState,
     incident: incidentState,
+    incidentWorkflow,
     activeAlerts,
     polygons: STATUTORY_GEOFENCES,
     gpsError,
+    confirmIntentional,
+    triggerEmergencySos,
+    resetIncidentWorkflow,
     requestLocation,
     refreshWeather: () => fetchProactiveWeather(activeCoords.latitude, activeCoords.longitude),
   };
