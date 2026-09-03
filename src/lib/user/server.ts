@@ -10,6 +10,7 @@ import { customModelProvider } from "@/lib/ai/models";
 
 // Helper function to get model provider from model name
 const getModelProvider = (modelName: string): string => {
+  if (modelName === "gemini-new" || modelName === "gemini-old") return "google";
   for (const { provider, models } of customModelProvider.modelsInfo) {
     for (const model of models) {
       if (model.name === modelName) {

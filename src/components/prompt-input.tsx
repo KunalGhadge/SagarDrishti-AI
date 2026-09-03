@@ -147,6 +147,12 @@ export default function PromptInput({
     return model ?? globalModel;
   }, [model, globalModel]);
 
+  const currentModelLabel = useMemo(() => {
+    const providerItem = providers?.find((p) => p.provider === chatModel?.provider);
+    const modelItem = providerItem?.models.find((m) => m.name === chatModel?.model);
+    return modelItem?.label || chatModel?.model;
+  }, [providers, chatModel]);
+
   const editorRef = useRef<Editor | null>(null);
 
   const setChatModel = useCallback(
@@ -577,7 +583,7 @@ export default function PromptInput({
                           className="text-foreground group-data-[state=open]:text-foreground truncate max-w-[70px] sm:max-w-[150px]"
                           data-testid="selected-model-name"
                         >
-                          {chatModel.model}
+                          {currentModelLabel || chatModel.model}
                         </span>
                       </>
                     ) : (

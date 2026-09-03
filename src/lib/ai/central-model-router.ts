@@ -132,11 +132,18 @@ export async function generateWithProvider(
 
       let activeKeyInfo: { maskedId: string; key: string } | null = null;
       if (provider === "google") {
-        const active = keyPoolManager.getActiveGeminiKey();
+        const active = keyPoolManager.getActiveGeminiKey(model);
         activeKeyInfo = active ? { maskedId: active.maskedId, key: active.key } : null;
       } else if (provider === "groq") {
         const active = keyPoolManager.getActiveGroqKey();
         activeKeyInfo = active ? { maskedId: active.maskedId, key: active.key } : null;
+      }
+
+      if (!activeKeyInfo) {
+        logger.info(
+          `No active healthy keys for ${provider} on model ${model}. Advancing to next candidate.`
+        );
+        break;
       }
 
       const maskedKeyId = activeKeyInfo?.maskedId || `${provider} Key #1`;
@@ -216,6 +223,11 @@ export async function generateWithProvider(
       } catch (err: any) {
         const errMsg = err?.message || String(err);
         const retryable = isRetryableProviderError(err);
+        const errStatus =
+          err?.status ||
+          err?.statusCode ||
+          (err?.response && err?.response.status) ||
+          (errMsg.includes("403") ? 403 : errMsg.includes("404") ? 404 : errMsg.includes("429") ? 429 : undefined);
 
         logger.warn(
           `Attempt ${totalAttempts} failed on ${provider}/${model} (${maskedKeyId}): ${errMsg} | Retryable: ${retryable}`
@@ -225,17 +237,37 @@ export async function generateWithProvider(
           `Attempt ${totalAttempts} failed on ${provider}/${model} (${maskedKeyId})`
         );
 
+        if (provider === "google") {
+          keyPoolManager.recordModelOutcome(maskedKeyId, model, {
+            status: errStatus || (retryable ? 429 : 404),
+            message: errMsg,
+          });
+
+          // If this key failed with 403 or 404 for this model,
+          // check if there is ANOTHER Gemini key in the pool that is compatible!
+          if (errStatus === 403 || errStatus === 404) {
+            const alternateKeys = keyPoolManager.getCompatibleGeminiKeys(model);
+            if (alternateKeys.length > 0 && kAttempt < maxKeyAttempts - 1) {
+              const rotated = keyPoolManager.rotateGeminiKey(`HTTP ${errStatus}`, model);
+              logger.warn(
+                `Model ${model} unavailable on ${maskedKeyId} (HTTP ${errStatus}). Trying alternate key ${rotated?.maskedId || "next key"} (attempt ${kAttempt + 1}/${maxKeyAttempts})`
+              );
+              continue;
+            }
+          }
+        }
+
         if (retryable) {
           // Rotate key if more keys available for this provider
           if (provider === "google") {
-            keyPoolManager.rotateGeminiKey(errMsg);
+            keyPoolManager.rotateGeminiKey(errMsg, model);
           } else if (provider === "groq") {
             keyPoolManager.rotateGroqKey(errMsg);
           }
           // Continue to next key attempt
           continue;
         } else {
-          // Non-retryable error on this specific model/provider (e.g. model not found, invalid schema)
+          // Non-retryable error across all keys for this specific model candidate
           // Break key loop and try next model candidate in chain
           break;
         }

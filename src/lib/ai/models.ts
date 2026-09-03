@@ -37,15 +37,18 @@ const logger = globalLogger.withDefaults({
 
 const geminiFetch: typeof fetch = async (input, init) => {
   const totalKeys = keyPoolManager.getGeminiKeyCount();
-  if (totalKeys <= 1) {
+  if (totalKeys === 0) {
     return fetch(input, init);
   }
 
   const baseHeaders = new Headers(init?.headers);
+  const modelMatch = typeof input === "string" ? input.match(/models\/([^:?]+)/) : null;
+  const requestedModel = modelMatch ? modelMatch[1] : undefined;
 
   for (let attempt = 0; attempt < totalKeys; attempt++) {
-    const activeKeyInfo = keyPoolManager.getActiveGeminiKey();
+    const activeKeyInfo = keyPoolManager.getActiveGeminiKey(requestedModel);
     const activeKey = activeKeyInfo?.key;
+    const maskedId = activeKeyInfo?.maskedId || `Gemini Key #${attempt + 1}`;
 
     const requestHeaders = new Headers(baseHeaders);
     if (activeKey) {
@@ -64,13 +67,50 @@ const geminiFetch: typeof fetch = async (input, init) => {
       headers: requestHeaders,
     });
 
+    // On 200 OK, record positive model access
+    if (response.status === 200) {
+      if (requestedModel) {
+        keyPoolManager.recordModelOutcome(maskedId, requestedModel, {
+          status: 200,
+          message: "OK",
+        });
+      }
+      return response;
+    }
+
     // Detect 429 Rate Limit / Quota Exhaustion or 503 Overloaded
     if ((response.status === 429 || response.status === 503) && attempt < totalKeys - 1) {
-      const rotated = keyPoolManager.rotateGeminiKey(`HTTP ${response.status}`);
+      if (requestedModel) {
+        keyPoolManager.recordModelOutcome(maskedId, requestedModel, {
+          status: response.status,
+          message: `HTTP ${response.status}`,
+        });
+      }
+      const rotated = keyPoolManager.rotateGeminiKey(`HTTP ${response.status}`, requestedModel);
       logger.warn(
-        `Gemini API returned ${response.status}. Automatically failing over to ${rotated?.maskedId || "next key"} (attempt ${attempt + 1}/${totalKeys})`
+        `Gemini API returned ${response.status} for ${requestedModel || "request"}. Automatically failing over to ${rotated?.maskedId || "next key"} (attempt ${attempt + 1}/${totalKeys})`
       );
       continue;
+    }
+
+    // Detect 403 (Project Denied) or 404 (Model Not Found / Deprecated)
+    if ((response.status === 403 || response.status === 404) && attempt < totalKeys - 1) {
+      if (requestedModel) {
+        keyPoolManager.recordModelOutcome(maskedId, requestedModel, {
+          status: response.status,
+          message: `HTTP ${response.status} on model ${requestedModel}`,
+        });
+      }
+      const otherCompatible = requestedModel
+        ? keyPoolManager.getCompatibleGeminiKeys(requestedModel)
+        : [];
+      if (otherCompatible.length > 0) {
+        const rotated = keyPoolManager.rotateGeminiKey(`HTTP ${response.status}`, requestedModel);
+        logger.warn(
+          `Gemini API returned ${response.status} for ${requestedModel} on ${maskedId}. Trying alternate compatible key ${rotated?.maskedId || "next key"} (attempt ${attempt + 1}/${totalKeys})`
+        );
+        continue;
+      }
     }
 
     return response;
@@ -96,7 +136,7 @@ const google = createGoogleGenerativeAI({
 
 const groqFetch: typeof fetch = async (input, init) => {
   const totalKeys = keyPoolManager.getGroqKeyCount();
-  if (totalKeys <= 1) {
+  if (totalKeys === 0) {
     return fetch(input, init);
   }
 
@@ -158,8 +198,14 @@ const staticModels = {
     "gpt-5.1-codex-mini": openai("gpt-5.1-codex-mini"),
   },
   google: {
-    // New Gemini Models (2.5 & 2.0 with reasoning and state-of-the-art vision)
+    // Newest Gemini Models (3.5 and 3.1 with active tool calling across all keys)
+    "gemini-3.5-flash": google("gemini-3.5-flash"),
+    "gemini-3.5-flash-lite": google("gemini-3.5-flash-lite"),
+    "gemini-3.1-flash-lite": google("gemini-3.1-flash-lite"),
+
+    // Stable 2.5 Gemini Models
     "gemini-2.5-flash": google("gemini-2.5-flash"),
+    "gemini-2.5-flash-lite": google("gemini-2.5-flash-lite"),
     "gemini-2.5-pro": google("gemini-2.5-pro"),
     "gemini-2.0-flash": google("gemini-2.0-flash"),
 
@@ -167,7 +213,7 @@ const staticModels = {
     "gemini-1.5-pro": google("gemini-1.5-pro"),
     "gemini-1.5-flash": google("gemini-1.5-flash"),
 
-    // Configured Aliases for Dynamic Environment Selection
+    // Configured Aliases for Dynamic Environment Selection (internal fallback routing)
     "gemini-new": google(GEMINI_CONFIGURED_NEW_MODEL),
     "gemini-old": google(GEMINI_CONFIGURED_OLD_MODEL),
   },
@@ -234,7 +280,23 @@ registerFileSupport(
 );
 
 registerFileSupport(
+  staticModels.google["gemini-3.5-flash"],
+  GEMINI_FILE_MIME_TYPES,
+);
+registerFileSupport(
+  staticModels.google["gemini-3.5-flash-lite"],
+  GEMINI_FILE_MIME_TYPES,
+);
+registerFileSupport(
+  staticModels.google["gemini-3.1-flash-lite"],
+  GEMINI_FILE_MIME_TYPES,
+);
+registerFileSupport(
   staticModels.google["gemini-2.5-flash"],
+  GEMINI_FILE_MIME_TYPES,
+);
+registerFileSupport(
+  staticModels.google["gemini-2.5-flash-lite"],
   GEMINI_FILE_MIME_TYPES,
 );
 registerFileSupport(
@@ -325,22 +387,92 @@ function getFallbackModel(): LanguageModel {
   return staticModels.google["gemini-2.5-flash"];
 }
 
+/**
+ * Generates user-friendly display labels dynamically reflecting the configured models.
+ */
+export function formatFriendlyModelName(provider: string, modelName: string): string {
+  if (provider === "google") {
+    if (modelName === "gemini-new") {
+      modelName = GEMINI_CONFIGURED_NEW_MODEL;
+    } else if (modelName === "gemini-old") {
+      modelName = GEMINI_CONFIGURED_OLD_MODEL;
+    }
+
+    if (modelName === "gemini-2.5-flash") return "Gemini 2.5 Flash";
+    if (modelName === "gemini-2.5-flash-lite") return "Gemini 2.5 Flash Lite";
+    if (modelName === "gemini-2.5-pro") return "Gemini 2.5 Pro";
+    if (modelName === "gemini-2.0-flash") return "Gemini 2.0 Flash";
+    if (modelName === "gemini-3.6-flash") return "Gemini 3.6 Flash";
+    if (modelName === "gemini-3.5-flash") return "Gemini 3.5 Flash";
+    if (modelName === "gemini-1.5-flash") return "Gemini 1.5 Flash";
+    if (modelName === "gemini-1.5-pro") return "Gemini 1.5 Pro";
+
+    return modelName
+      .replace(/^gemini-/, "Gemini ")
+      .split("-")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+
+  if (provider === "groq") {
+    if (modelName === "gpt-oss-120b" || modelName === "openai/gpt-oss-120b") {
+      return "Groq GPT-OSS 120B";
+    }
+    if (modelName === "gpt-oss-20b" || modelName === "openai/gpt-oss-20b") {
+      return "Groq GPT-OSS 20B";
+    }
+    if (modelName === "qwen3.6-27b" || modelName === "qwen/qwen3.6-27b") {
+      return "Groq Qwen 3.6 27B";
+    }
+  }
+
+  return modelName;
+}
+
 export const customModelProvider = {
   modelsInfo: Object.entries(allModels)
     .filter(([provider]) => provider !== "ollama" && provider !== "local")
-    .map(([provider, models]) => ({
-      provider,
-      models: Object.entries(models).map(([name, model]) => ({
-        name,
-        isToolCallUnsupported: isToolCallUnsupportedModel(model),
-        isImageInputUnsupported: isImageInputUnsupportedModel(model),
-        supportedFileMimeTypes: [...getFilePartSupportedMimeTypes(model)],
-      })),
-      hasAPIKey: checkProviderAPIKey(provider as keyof typeof staticModels),
-    })),
+    .map(([provider, models]) => {
+      // Exclude internal routing aliases (gemini-new, gemini-old) from user-facing dropdown list
+      // The actual configured models (e.g. gemini-2.5-flash, gemini-2.5-flash-lite) are displayed directly
+      const entries = Object.entries(models).filter(([name]) => {
+        if (provider === "google" && (name === "gemini-new" || name === "gemini-old")) {
+          return false;
+        }
+        return true;
+      });
+
+      return {
+        provider,
+        models: entries.map(([name, model]) => ({
+          name,
+          label: formatFriendlyModelName(provider, name),
+          isToolCallUnsupported: isToolCallUnsupportedModel(model),
+          isImageInputUnsupported: isImageInputUnsupportedModel(model),
+          supportedFileMimeTypes: [...getFilePartSupportedMimeTypes(model)],
+        })),
+        hasAPIKey: checkProviderAPIKey(provider as keyof typeof staticModels),
+      };
+    }),
   getModel: (model?: ChatModel): LanguageModel => {
     const fallback = getFallbackModel();
     if (!model) return fallback;
+    if (model.provider === "google") {
+      if (model.model === "gemini-new") {
+        return (
+          allModels.google[GEMINI_CONFIGURED_NEW_MODEL] ||
+          allModels.google["gemini-2.5-flash"] ||
+          fallback
+        );
+      }
+      if (model.model === "gemini-old") {
+        return (
+          allModels.google[GEMINI_CONFIGURED_OLD_MODEL] ||
+          allModels.google["gemini-2.5-flash-lite"] ||
+          fallback
+        );
+      }
+    }
     return allModels[model.provider]?.[model.model] || fallback;
   },
 };
