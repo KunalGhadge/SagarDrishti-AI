@@ -23,7 +23,9 @@ export const useChatModels = (options?: SWRConfiguration) => {
       const status = appStore.getState();
       const googleProvider = data.find((p) => p.provider === "google");
       const targetModel =
-        googleProvider?.models.find((m) => m.name === "gemini-2.5-flash")?.name ||
+        googleProvider?.models.find((m) => m.name === "gemini-3.1-flash-lite")?.name ||
+        googleProvider?.models.find((m) => m.name === "gemini-3.5-flash")?.name ||
+        googleProvider?.models.find((m) => m.name === "gemini-2.5-flash-lite")?.name ||
         googleProvider?.models[0]?.name ||
         data.find((p) => p.hasAPIKey)?.models[0]?.name ||
         data[0]?.models[0]?.name;
@@ -35,6 +37,8 @@ export const useChatModels = (options?: SWRConfiguration) => {
 
       if (
         !status.chatModel ||
+        status.chatModel.model === "gemini-2.5-flash" ||
+        status.chatModel.model === "gemini-3.5-flash" ||
         (status.chatModel.provider !== "google" && googleProvider?.hasAPIKey)
       ) {
         if (targetProvider && targetModel) {

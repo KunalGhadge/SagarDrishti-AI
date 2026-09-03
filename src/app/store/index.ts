@@ -116,7 +116,7 @@ const initialState: AppState = {
   toolPresets: [],
   chatModel: {
     provider: "google",
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite",
   },
   openShortcutsPopup: false,
   openChatPreferences: false,

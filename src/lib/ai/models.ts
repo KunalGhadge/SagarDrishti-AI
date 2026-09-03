@@ -373,7 +373,11 @@ function getFallbackModel(): LanguageModel {
   if (checkProviderAPIKey("google")) {
     const configuredNew = staticModels.google[GEMINI_CONFIGURED_NEW_MODEL as keyof typeof staticModels.google];
     if (configuredNew) return configuredNew;
-    return staticModels.google["gemini-2.5-flash"] || staticModels.google["gemini-1.5-flash"];
+    return (
+      staticModels.google["gemini-3.1-flash-lite"] ||
+      staticModels.google["gemini-3.5-flash"] ||
+      staticModels.google["gemini-2.5-flash-lite"]
+    );
   }
   if (checkProviderAPIKey("groq")) {
     return staticModels.groq["gpt-oss-120b"] || staticModels.groq["gpt-oss-20b"];
@@ -384,7 +388,7 @@ function getFallbackModel(): LanguageModel {
   if (checkProviderAPIKey("anthropic")) {
     return staticModels.anthropic["sonnet-4.5"];
   }
-  return staticModels.google["gemini-2.5-flash"];
+  return staticModels.google["gemini-3.1-flash-lite"] || staticModels.google["gemini-3.5-flash"];
 }
 
 /**
@@ -398,12 +402,14 @@ export function formatFriendlyModelName(provider: string, modelName: string): st
       modelName = GEMINI_CONFIGURED_OLD_MODEL;
     }
 
+    if (modelName === "gemini-3.1-flash-lite") return "Gemini 3.1 Flash Lite";
+    if (modelName === "gemini-3.5-flash") return "Gemini 3.5 Flash";
+    if (modelName === "gemini-3.5-flash-lite") return "Gemini 3.5 Flash Lite";
     if (modelName === "gemini-2.5-flash") return "Gemini 2.5 Flash";
     if (modelName === "gemini-2.5-flash-lite") return "Gemini 2.5 Flash Lite";
     if (modelName === "gemini-2.5-pro") return "Gemini 2.5 Pro";
     if (modelName === "gemini-2.0-flash") return "Gemini 2.0 Flash";
     if (modelName === "gemini-3.6-flash") return "Gemini 3.6 Flash";
-    if (modelName === "gemini-3.5-flash") return "Gemini 3.5 Flash";
     if (modelName === "gemini-1.5-flash") return "Gemini 1.5 Flash";
     if (modelName === "gemini-1.5-pro") return "Gemini 1.5 Pro";
 

@@ -500,7 +500,7 @@ export const GEMINI_CONFIGURED_OLD_MODEL =
   process.env.GEMINI_OLD_MODEL || "gemini-3.5-flash-lite";
 
 export const GEMINI_CONFIGURED_NEW_MODEL =
-  process.env.GEMINI_NEW_MODEL || "gemini-3.5-flash";
+  process.env.GEMINI_NEW_MODEL || "gemini-3.1-flash-lite";
 
 export const MODEL_CAPABILITIES_REGISTRY: Record<string, ModelCapability> = {
   // --- Google / Gemini Models (Old + New) ---
