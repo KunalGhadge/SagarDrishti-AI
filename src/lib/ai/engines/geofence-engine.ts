@@ -145,13 +145,13 @@ export function isPointInPolygon(
 }
 
 /**
- * Geodesic distance from a point to a line segment in Kilometers
+ * Geodesic distance from a point to a line segment in Kilometers with closest point coordinates
  */
 export function distancePointToSegmentKm(
   p: { lat: number; lon: number },
   a: { lat: number; lon: number },
   b: { lat: number; lon: number }
-): number {
+): { distKm: number; closestPoint: { lat: number; lon: number } } {
   // Convert to Cartesian approximation using Equirectangular projection centered at p
   const degToRad = Math.PI / 180;
 
@@ -185,32 +185,46 @@ export function distancePointToSegmentKm(
 
   // Exact Haversine distance in NM then converted to km
   const distNM = calculateDistanceNM(p.lat, p.lon, nearestLat, nearestLon);
-  return parseFloat((distNM * 1.852).toFixed(1));
+  const distKm = parseFloat((distNM * 1.852).toFixed(1));
+
+  return {
+    distKm,
+    closestPoint: {
+      lat: parseFloat(nearestLat.toFixed(4)),
+      lon: parseFloat(nearestLon.toFixed(4)),
+    },
+  };
 }
 
 /**
- * Calculates minimum distance from point to polygon boundary in kilometers
+ * Calculates minimum distance from point to polygon boundary in kilometers with closest boundary coordinate
  */
 export function distanceToPolygonBoundaryKm(
   p: { lat: number; lon: number },
   polygonCoords: Array<{ lat: number; lon: number }>
-): number {
-  let minDistance = Infinity;
+): { minDistanceKm: number; closestPoint: { lat: number; lon: number } } {
+  let minDistanceKm = Infinity;
+  let closestPoint = { lat: polygonCoords[0].lat, lon: polygonCoords[0].lon };
 
   for (let i = 0; i < polygonCoords.length; i++) {
     const a = polygonCoords[i];
     const b = polygonCoords[(i + 1) % polygonCoords.length];
-    const dist = distancePointToSegmentKm(p, a, b);
-    if (dist < minDistance) {
-      minDistance = dist;
+    const result = distancePointToSegmentKm(p, a, b);
+    if (result.distKm < minDistanceKm) {
+      minDistanceKm = result.distKm;
+      closestPoint = result.closestPoint;
     }
   }
 
-  return minDistance === Infinity ? 999 : minDistance;
+  return {
+    minDistanceKm: minDistanceKm === Infinity ? 999 : minDistanceKm,
+    closestPoint,
+  };
 }
 
 /**
  * Comprehensive Deterministic Geofence Evaluation
+ * 4 Structured States: SAFE | APPROACHING | CRITICAL_PROXIMITY | BREACH
  */
 export function evaluateGeofence(userLocation: {
   latitude: number;
@@ -219,17 +233,20 @@ export function evaluateGeofence(userLocation: {
   const p = { lat: userLocation.latitude, lon: userLocation.longitude };
   const safeHarbor = resolveSafeHarbor(userLocation);
 
-  // 1. Check if inside any restricted polygon
+  // 1. Check if inside any restricted polygon -> BREACH
   for (const fence of STATUTORY_GEOFENCES) {
     if (isPointInPolygon(p, fence.coordinates)) {
       return {
-        status: "OUTSIDE_PERMITTED_AREA",
+        status: "BREACH",
         isInsideRestrictedZone: true,
         distanceToBoundaryKm: 0,
         nearestZoneName: fence.name,
         zoneType: fence.type,
+        closestBoundaryPoint: { lat: p.lat, lon: p.lon },
         nearestSafeHarbor: safeHarbor,
+        distanceToSafePortNM: safeHarbor.distanceNM,
         returnBearing: safeHarbor.bearing,
+        recommendedAction: `Execute immediate 180° heading reversal away from ${fence.name} toward ${safeHarbor.name}`,
       };
     }
   }
@@ -237,20 +254,26 @@ export function evaluateGeofence(userLocation: {
   // 2. If outside all polygons, calculate minimum distance to closest boundary
   let closestZone = STATUTORY_GEOFENCES[0];
   let minDistanceKm = Infinity;
+  let closestBoundaryPoint: { lat: number; lon: number } | null = null;
 
   for (const fence of STATUTORY_GEOFENCES) {
-    const dist = distanceToPolygonBoundaryKm(p, fence.coordinates);
-    if (dist < minDistanceKm) {
-      minDistanceKm = dist;
+    const res = distanceToPolygonBoundaryKm(p, fence.coordinates);
+    if (res.minDistanceKm < minDistanceKm) {
+      minDistanceKm = res.minDistanceKm;
       closestZone = fence;
+      closestBoundaryPoint = res.closestPoint;
     }
   }
 
   let status: GeofenceRiskStatus = "SAFE";
+  let recommendedAction = `Continue planned passage; authorized sailing waters clear (${minDistanceKm} km from nearest boundary)`;
+
   if (minDistanceKm <= 25.0) {
-    status = "GEOFENCE_WARNING";
+    status = "CRITICAL_PROXIMITY";
+    recommendedAction = `Immediate navigational alert: within 25 km critical buffer of ${closestZone.name}. Prepare heading alteration to ${safeHarbor.bearing}`;
   } else if (minDistanceKm <= 50.0) {
-    status = "APPROACHING_RESTRICTED_ZONE";
+    status = "APPROACHING";
+    recommendedAction = `Maintain navigational caution; approaching statutory boundary corridor (${minDistanceKm} km from ${closestZone.name})`;
   }
 
   return {
@@ -259,7 +282,10 @@ export function evaluateGeofence(userLocation: {
     distanceToBoundaryKm: minDistanceKm,
     nearestZoneName: closestZone.name,
     zoneType: closestZone.type,
+    closestBoundaryPoint,
     nearestSafeHarbor: safeHarbor,
+    distanceToSafePortNM: safeHarbor.distanceNM,
     returnBearing: safeHarbor.bearing,
+    recommendedAction,
   };
 }

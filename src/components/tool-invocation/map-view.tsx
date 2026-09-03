@@ -18,6 +18,9 @@ export interface MapMarker {
   lon: number;
   label: string;
   type: "current" | "hazard" | "safe_zone" | "pfz";
+  heading?: number | null;
+  speed?: number | null;
+  accuracy?: number | null;
 }
 
 export interface MapPolygon {
@@ -34,6 +37,8 @@ export interface MapViewProps {
   polygons?: MapPolygon[];
   path?: Array<{ lat: number; lon: number }>;
   pathLabel?: string;
+  track?: Array<{ lat: number; lon: number }>;
+  hudOverlay?: React.ReactNode;
   className?: string;
   mapHeight?: string;
 }
@@ -46,6 +51,8 @@ export function MapView(props: MapViewProps) {
     polygons = [],
     path,
     pathLabel = "Direct Bearing (Straight Line)",
+    track,
+    hudOverlay,
     className,
     mapHeight,
   } = props;
@@ -59,13 +66,39 @@ export function MapView(props: MapViewProps) {
     async function initLeaflet() {
       if (typeof window === "undefined" || !mapContainerRef.current) return;
 
-      // Ensure leaflet CSS is loaded
+      // Dynamically import Leaflet and leaflet CSS
       if (!document.getElementById("leaflet-css")) {
         const link = document.createElement("link");
         link.id = "leaflet-css";
         link.rel = "stylesheet";
         link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
         document.head.appendChild(link);
+      }
+
+      // Inject custom marker styles
+      if (!document.getElementById("leaflet-custom-marker-style")) {
+        const style = document.createElement("style");
+        style.id = "leaflet-custom-marker-style";
+        style.textContent = `
+          .custom-leaflet-marker {
+            background: transparent !important;
+            border: none !important;
+          }
+          .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 2px;
+          }
+          .leaflet-popup-content {
+            margin: 10px 12px;
+            line-height: 1.4;
+          }
+          @keyframes pulse {
+            0%, 100% { opacity: 0.35; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.35); }
+          }
+        `;
+        document.head.appendChild(style);
       }
 
       const L = await import("leaflet");
@@ -121,54 +154,80 @@ export function MapView(props: MapViewProps) {
 
         const typeLabel =
           m.type === "current"
-            ? "Your Reference Location"
+            ? "Vessel Live Position"
             : m.type === "pfz"
             ? "Potential Fishing Zone Candidate"
             : m.type === "safe_zone"
-            ? "Safe Harbor"
-            : "Maritime Hazard / Exclusion";
+            ? "Designated Safe Harbor"
+            : "Maritime Exclusion / Hazard";
+
+        // Heading rotation arrow HTML if heading is available
+        const headingArrowHtml =
+          m.type === "current" && m.heading != null
+            ? `
+            <div style="
+              position: absolute;
+              top: -6px;
+              width: 0;
+              height: 0;
+              border-left: 4px solid transparent;
+              border-right: 4px solid transparent;
+              border-bottom: 8px solid white;
+              transform: rotate(${m.heading}deg);
+              transform-origin: center 20px;
+            "></div>
+          `
+            : "";
 
         // Custom Leaflet DivIcon for modern glowing marker
         const iconHtml = `
           <div style="
             position: relative;
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
           ">
             <div style="
               position: absolute;
-              width: 24px;
-              height: 24px;
+              width: 28px;
+              height: 28px;
               border-radius: 50%;
               background-color: ${color};
               opacity: 0.35;
               animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
             "></div>
             <div style="
-              width: 14px;
-              height: 14px;
+              position: relative;
+              width: 16px;
+              height: 16px;
               border-radius: 50%;
               background-color: ${color};
               border: 2px solid white;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            "></div>
+              box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            ">
+              ${headingArrowHtml}
+            </div>
           </div>
         `;
 
         const customIcon = L.divIcon({
           html: iconHtml,
           className: "custom-leaflet-marker",
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
         });
 
         const popupContent = `
           <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4; color: #1e293b;">
             <div style="font-weight: 700; margin-bottom: 2px;">${m.label}</div>
             <div style="color: #64748b; font-size: 11px;">${m.lat.toFixed(4)}°N, ${m.lon.toFixed(4)}°E</div>
+            ${m.speed != null ? `<div style="color: #334155; font-size: 11px; margin-top: 2px;">Speed: <strong>${m.speed} kts</strong></div>` : ""}
+            ${m.heading != null ? `<div style="color: #334155; font-size: 11px;">Heading: <strong>${m.heading}°</strong></div>` : ""}
             <div style="margin-top: 4px; display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; background-color: #f1f5f9; color: #334155;">
               ${typeLabel}
             </div>
@@ -180,14 +239,26 @@ export function MapView(props: MapViewProps) {
         bounds.extend([m.lat, m.lon]);
       });
 
+      // Add recent breadcrumb track if provided
+      if (track && track.length > 1) {
+        const trackCoords = track.map((p) => [p.lat, p.lon] as [number, number]);
+        L.polyline(trackCoords, {
+          color: "#3b82f6",
+          weight: 2,
+          dashArray: "3, 6",
+          opacity: 0.7,
+        }).addTo(map);
+      }
+
       // Add Geofenced Polygons if provided
       if (polygons && polygons.length > 0) {
         polygons.forEach((poly) => {
           const polyCoords = poly.coordinates.map((c) => [c.lat, c.lon] as [number, number]);
           if (polyCoords.length >= 3) {
+            const isImbl = poly.type === "imbl" || poly.type === "hazard";
             const polyColor =
               poly.color ||
-              (poly.type === "imbl" || poly.type === "hazard"
+              (isImbl
                 ? "#ef4444"
                 : poly.type === "mpa"
                 ? "#f59e0b"
@@ -195,17 +266,26 @@ export function MapView(props: MapViewProps) {
 
             const polygonLayer = L.polygon(polyCoords, {
               color: polyColor,
-              weight: 2,
+              weight: isImbl ? 2.5 : 1.5,
               fillColor: polyColor,
-              fillOpacity: 0.15,
+              fillOpacity: isImbl ? 0.22 : 0.15,
             }).addTo(map);
 
             polygonLayer.bindPopup(`
               <div style="font-family: sans-serif; font-size: 12px; color: #1e293b;">
-                <strong>${poly.name}</strong><br/>
-                <span style="font-size: 11px; text-transform: capitalize;">Category: ${poly.type.toUpperCase()}</span>
+                <strong style="color: ${polyColor};">${poly.name}</strong><br/>
+                <span style="font-size: 11px; text-transform: uppercase; font-weight: 600;">
+                  Classification: ${poly.type === "imbl" ? "International Maritime Boundary (IMBL)" : poly.type === "mpa" ? "Marine Protected Area / Sanctuary" : "Restricted Zone"}
+                </span><br/>
+                <span style="font-size: 10px; color: #64748b;">Statutory Indian Maritime Jurisdiction</span>
               </div>
             `);
+
+            polygonLayer.bindTooltip(poly.name, {
+              sticky: true,
+              direction: "top",
+              className: "leaflet-polygon-tooltip text-xs font-semibold",
+            });
 
             polyCoords.forEach((coord) => bounds.extend(coord));
           }
@@ -223,18 +303,16 @@ export function MapView(props: MapViewProps) {
         }).addTo(map);
 
         polyline.bindPopup(`
-          <div style="font-family: sans-serif; font-size: 11px; color: #1e293b;">
-            <strong>${pathLabel}</strong><br/>
-            Direct compass vector (not a navigation route).
+          <div style="font-family: sans-serif; font-size: 12px; color: #1e293b;">
+            <strong>Emergency Escape Vector</strong><br/>
+            <span style="font-size: 11px; color: #d97706;">${pathLabel}</span>
           </div>
         `);
-
-        polylineCoords.forEach((coord) => bounds.extend(coord));
       }
 
-      // Auto fit map bounds if markers exist
+      // Fit map to markers and boundaries
       if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
+        map.fitBounds(bounds, { padding: [35, 35], maxZoom: 11 });
       }
 
       // Ensure proper sizing when rendered inside drawers or dynamic containers
@@ -254,10 +332,10 @@ export function MapView(props: MapViewProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, [markers, polygons, path, pathLabel]);
+  }, [markers, polygons, path, pathLabel, track]);
 
   return (
-    <Card className={cn("w-full overflow-hidden border bg-card text-card-foreground shadow-sm", className)}>
+    <Card className={cn("w-full overflow-hidden border bg-card text-card-foreground shadow-sm relative", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2 border-b bg-muted/20">
         <div>
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -277,32 +355,45 @@ export function MapView(props: MapViewProps) {
           />
         </div>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-0 relative">
+        {/* Floating Maritime Tactical HUD Overlay if provided */}
+        {hudOverlay && (
+          <div className="absolute top-2 left-2 right-2 z-10 pointer-events-none">
+            <div className="pointer-events-auto">
+              {hudOverlay}
+            </div>
+          </div>
+        )}
+
         <div
           ref={mapContainerRef}
           className="w-full bg-muted/40 relative z-0"
-          style={{ minHeight: mapHeight || "320px", height: mapHeight || "320px" }}
+          style={{ minHeight: mapHeight || "340px", height: mapHeight || "340px" }}
         />
-        {/* Clean legend footer */}
+
+        {/* Tactical Map Footer Legend */}
         <div className="flex flex-wrap items-center justify-between gap-2 p-2 px-3 bg-background/95 border-t text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-blue-500 inline-block" /> Reference Location
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-cyan-500 inline-block" /> PFZ Candidate
+              <span className="size-2 rounded-full bg-blue-500 inline-block" /> Live Vessel
             </span>
             <span className="flex items-center gap-1">
               <span className="size-2 rounded-full bg-emerald-500 inline-block" /> Safe Harbor
             </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-red-500 inline-block" /> IMBL Border
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-amber-500 inline-block" /> Sanctuary / MPA
+            </span>
             {path && path.length >= 2 && (
               <span className="flex items-center gap-1">
-                <span className="w-3 h-0.5 border-t-2 border-dashed border-amber-500 inline-block" /> Direct Vector
+                <span className="w-3 h-0.5 border-t-2 border-dashed border-amber-500 inline-block" /> Escape Vector
               </span>
             )}
           </div>
-          <span className="text-[10px] text-muted-foreground/80">
-            OpenStreetMap Verified Geospatial Telemetry
+          <span className="text-[10px] text-muted-foreground/80 hidden sm:inline">
+            Autonomous Maritime Geofence Engine
           </span>
         </div>
       </CardContent>

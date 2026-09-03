@@ -4,11 +4,9 @@ export type SecurityLevel = "SAFE" | "WARNING" | "CRITICAL";
 
 export type GeofenceRiskStatus =
   | "SAFE"
-  | "APPROACHING_RESTRICTED_ZONE"
-  | "GEOFENCE_WARNING"
-  | "OUTSIDE_PERMITTED_AREA"
-  | "PERSISTENT_VIOLATION"
-  | "POTENTIAL_INCIDENT";
+  | "APPROACHING"
+  | "CRITICAL_PROXIMITY"
+  | "BREACH";
 
 export interface VesselTelemetry {
   latitude: number | null;
@@ -18,7 +16,7 @@ export interface VesselTelemetry {
   headingDegrees: number | null;
   headingCardinal: string | null;
   timestamp: number | null;
-  trackingStatus: "ACTIVE_GNSS" | "CACHED_POSITION" | "UNAVAILABLE";
+  trackingStatus: "LIVE_GNSS" | "CACHED_POSITION" | "UNAVAILABLE";
 }
 
 export interface GeofenceEvaluation {
@@ -27,18 +25,25 @@ export interface GeofenceEvaluation {
   distanceToBoundaryKm: number | null;
   nearestZoneName: string;
   zoneType: "imbl" | "mpa" | "hazard" | "safe";
+  closestBoundaryPoint: { lat: number; lon: number } | null;
   nearestSafeHarbor: SafeHarborResult;
+  distanceToSafePortNM: number;
   returnBearing: string;
+  recommendedAction: string;
 }
 
 export interface WeatherConditionState {
   status: "SAFE" | "WARNING" | "CRITICAL";
   windSpeedKmph: number | null;
+  windGustsKmph: number | null;
   waveHeightMeters: number | null;
+  wavePeriodSeconds: number | null;
+  currentVelocityMs: number | null;
   seaStateCategory: string;
   isSteepChop: boolean;
   summary: string;
   lastUpdated: number | null;
+  source: string;
 }
 
 export interface CycloneConditionState {
@@ -48,6 +53,13 @@ export interface CycloneConditionState {
   closestDistanceKm: number | null;
   inGaleRadius: boolean;
   summary: string;
+  source: string;
+}
+
+export interface IncidentTimelineEntry {
+  timestamp: string;
+  event: string;
+  severity: "INFO" | "WARNING" | "CRITICAL";
 }
 
 export interface IncidentState {
@@ -61,11 +73,24 @@ export interface IncidentState {
   breachCoordinates: { lat: number; lon: number } | null;
   violatedZone: string | null;
   recommendedAction: string | null;
+  timeline: IncidentTimelineEntry[];
   emergencyChannels: {
     indianCoastGuardHelpline: string;
     marineVhfRadio: string;
     coastalPolice: string;
   };
+}
+
+export interface ActiveAlert {
+  id: string;
+  severity: "CRITICAL" | "WARNING" | "INFO";
+  title: string;
+  category: "GEOFENCE" | "WEATHER" | "INCIDENT" | "NAVIGATION";
+  description: string;
+  timestamp: number;
+  timeAgo: string;
+  source: string;
+  affectedLocation: string;
 }
 
 export interface OverallSecurityState {
@@ -75,4 +100,5 @@ export interface OverallSecurityState {
   weather: WeatherConditionState;
   cyclone: CycloneConditionState;
   incident: IncidentState;
+  activeAlerts: ActiveAlert[];
 }
