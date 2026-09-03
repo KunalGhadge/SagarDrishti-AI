@@ -179,7 +179,7 @@ EMERGENCY CONTACT CHANNELS:
             <div className="flex items-center gap-2.5">
               <div
                 className={cn(
-                  "size-8 rounded-lg flex items-center justify-center transition-colors",
+                  "size-9 rounded-lg flex items-center justify-center transition-colors shrink-0",
                   overallLevel === "CRITICAL"
                     ? "bg-red-500/15 text-red-500 border border-red-500/30"
                     : overallLevel === "WARNING"
@@ -188,26 +188,26 @@ EMERGENCY CONTACT CHANNELS:
                 )}
               >
                 {overallLevel === "CRITICAL" ? (
-                  <ShieldAlert className="size-4 animate-pulse" />
+                  <ShieldAlert className="size-5 animate-pulse" />
                 ) : overallLevel === "WARNING" ? (
-                  <ShieldAlert className="size-4" />
+                  <ShieldAlert className="size-5" />
                 ) : (
-                  <ShieldCheck className="size-4" />
+                  <ShieldCheck className="size-5" />
                 )}
               </div>
               <div className="flex flex-col text-left">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm sm:text-base">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-extrabold text-base sm:text-lg tracking-tight">
                     VESSEL SECURITY
                   </span>
                   <span className="text-muted-foreground text-xs hidden sm:inline">•</span>
-                  <span className="text-xs font-semibold text-muted-foreground hidden sm:inline">
+                  <span className="text-xs sm:text-sm font-semibold text-muted-foreground hidden sm:inline">
                     LIVE AUTONOMOUS MONITORING
                   </span>
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5",
+                      "text-xs font-mono font-semibold uppercase tracking-wider px-2.5 py-0.5",
                       overallLevel === "CRITICAL"
                         ? "bg-red-500/15 text-red-500 border-red-500/30 animate-pulse"
                         : overallLevel === "WARNING"
@@ -218,7 +218,7 @@ EMERGENCY CONTACT CHANNELS:
                     {overallLevel}
                   </Badge>
                 </div>
-                <span className="text-xs text-muted-foreground hidden sm:block">
+                <span className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
                   Continuous GNSS Geofencing, Environmental Hazard Analysis & Kinematic Operations
                 </span>
               </div>
@@ -231,13 +231,13 @@ EMERGENCY CONTACT CHANNELS:
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="rounded-full size-8"
+                    className="rounded-full size-8.5"
                     onClick={() => setIsFullscreen((prev) => !prev)}
                   >
                     {isFullscreen ? (
-                      <Minimize2 className="size-4" />
+                      <Minimize2 className="size-4.5" />
                     ) : (
-                      <Maximize2 className="size-4" />
+                      <Maximize2 className="size-4.5" />
                     )}
                   </Button>
                 </TooltipTrigger>
@@ -250,11 +250,11 @@ EMERGENCY CONTACT CHANNELS:
               <DrawerClose asChild>
                 <Button
                   variant="secondary"
-                  className="flex items-center gap-1 rounded-full h-8 px-3"
+                  className="flex items-center gap-1.5 rounded-full h-8.5 px-3.5"
                 >
                   <X className="size-4" />
-                  <Separator orientation="vertical" className="h-3" />
-                  <span className="text-[10px] text-muted-foreground font-mono">
+                  <Separator orientation="vertical" className="h-3.5" />
+                  <span className="text-xs text-muted-foreground font-mono font-medium">
                     ESC
                   </span>
                 </Button>
@@ -272,14 +272,14 @@ EMERGENCY CONTACT CHANNELS:
             {/* GPS UNAVAILABLE WARNING BANNER (Rendered honestly when browser GPS is unacquired) */}
             {telemetry.trackingStatus === "UNAVAILABLE" && (
               <Card className="border-amber-500/40 bg-amber-500/10 shadow-2xs">
-                <CardContent className="p-3 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-amber-600 dark:text-amber-400 block text-xs">
+                <CardContent className="p-3.5 text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="size-4.5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-bold text-amber-600 dark:text-amber-400 block text-xs sm:text-sm">
                         GPS SIGNAL UNAVAILABLE — WAITING FOR DEVICE GNSS FIX
                       </span>
-                      <span className="text-muted-foreground text-[11px] block mt-0.5">
+                      <span className="text-muted-foreground text-xs block leading-relaxed">
                         Hardware GNSS coordinates are currently unacquired. Displaying regional coastal reference data. Live kinematic geofence alerts require active position streaming.
                       </span>
                     </div>
@@ -287,10 +287,10 @@ EMERGENCY CONTACT CHANNELS:
                   <Button
                     size="sm"
                     variant="outline"
-                    className="shrink-0 h-7 text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 gap-1.5"
+                    className="shrink-0 h-8 text-xs sm:text-sm border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 gap-1.5 px-3 font-medium"
                     onClick={() => requestLocation()}
                   >
-                    <Radio className="size-3 animate-pulse" />
+                    <Radio className="size-3.5 animate-pulse" />
                     Acquire Device GNSS
                   </Button>
                 </CardContent>
@@ -300,78 +300,78 @@ EMERGENCY CONTACT CHANNELS:
             {/* HIGH SEVERITY INCIDENT ALERT CARD (Visible when breach or kinematic anomaly is detected) */}
             {incident.isIncident && (
               <Card className="border-red-500/50 bg-red-500/10 shadow-xs">
-                <CardHeader className="pb-2 pt-3 px-3.5 border-b border-red-500/20">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-xs sm:text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
-                      <AlertOctagon className="size-4 animate-ping text-red-500" />
+                <CardHeader className="pb-2.5 pt-3 px-3.5 border-b border-red-500/20">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <CardTitle className="text-sm sm:text-base font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
+                      <AlertOctagon className="size-4.5 animate-ping text-red-500" />
                       {incident.title}
                     </CardTitle>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {incidentWorkflow?.stage === "OPERATOR_CONFIRMED_INTENTIONAL" && (
-                        <Badge variant="outline" className="text-[10px] font-mono border-emerald-500 text-emerald-600 dark:text-emerald-400">
+                        <Badge variant="outline" className="text-xs font-mono border-emerald-500 text-emerald-600 dark:text-emerald-400 px-2 py-0.5">
                           INTENTIONAL ACKNOWLEDGED
                         </Badge>
                       )}
                       {incidentWorkflow?.stage === "BREACH_COUNTDOWN" && (
-                        <Badge variant="outline" className="text-[10px] font-mono border-amber-500 text-amber-600 dark:text-amber-400 animate-pulse">
+                        <Badge variant="outline" className="text-xs font-mono border-amber-500 text-amber-600 dark:text-amber-400 animate-pulse px-2 py-0.5">
                           INTENT PENDING
                         </Badge>
                       )}
                       {incidentWorkflow?.stage === "UNRESPONSIVE_ESCALATED" && (
-                        <Badge variant="destructive" className="text-[10px] font-mono">
+                        <Badge variant="destructive" className="text-xs font-mono px-2 py-0.5">
                           SOLAS ESCALATED
                         </Badge>
                       )}
-                      <Badge variant="destructive" className="text-[10px] uppercase font-mono tracking-wider">
+                      <Badge variant="destructive" className="text-xs uppercase font-mono tracking-wider px-2 py-0.5">
                         {incident.incidentId}
                       </Badge>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="px-3.5 pt-3 pb-3 text-xs flex flex-col gap-3">
+                <CardContent className="px-3.5 pt-3 pb-3 text-xs sm:text-sm flex flex-col gap-3">
                   <p className="text-foreground/90 font-medium leading-relaxed">
                     {incident.description}
                   </p>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-2 px-2.5 rounded-lg bg-background/80 border border-red-500/25 font-mono text-[11px]">
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Zone Breached</span>
-                      <span className="font-semibold text-red-500 truncate block">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-2.5 px-3 rounded-lg bg-background/80 border border-red-500/25 font-mono text-xs sm:text-sm">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-muted-foreground block text-xs font-medium">Zone Breached</span>
+                      <span className="font-bold text-red-500 truncate block">
                         {incident.violatedZone}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Restricted Dwell</span>
-                      <span className="font-semibold">{incident.durationMinutes} min</span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-muted-foreground block text-xs font-medium">Restricted Dwell</span>
+                      <span className="font-bold text-foreground">{incident.durationMinutes} min</span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Breach GNSS</span>
-                      <span className="font-semibold">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-muted-foreground block text-xs font-medium">Breach GNSS</span>
+                      <span className="font-bold text-foreground truncate block">
                         {activeCoords.latitude != null && activeCoords.longitude != null
                           ? `${activeCoords.latitude.toFixed(3)}°N, ${activeCoords.longitude.toFixed(3)}°E`
                           : "Awaiting Fix"}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Escape Heading</span>
-                      <span className="font-semibold text-emerald-500">{geofence.returnBearing}</span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-muted-foreground block text-xs font-medium">Escape Heading</span>
+                      <span className="font-bold text-emerald-500">{geofence.returnBearing}</span>
                     </div>
                   </div>
 
                   {/* Incident Timeline with real timestamps */}
                   {incident.timeline && incident.timeline.length > 0 && (
-                    <div className="p-2.5 rounded-lg bg-background/60 border border-border/50 flex flex-col gap-1.5">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                        <Clock className="size-3 text-primary" /> Incident Detection Timeline (Real Execution)
+                    <div className="p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col gap-2">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Clock className="size-3.5 text-primary" /> Incident Detection Timeline (Real Execution)
                       </span>
-                      <div className="flex flex-col gap-1 font-mono text-[11px]">
+                      <div className="flex flex-col gap-1.5 font-mono text-xs">
                         {incident.timeline.map((entry, idx) => (
                           <div key={idx} className="flex items-start gap-2">
                             <span className="text-muted-foreground shrink-0">{entry.timestamp}</span>
                             <span className="text-muted-foreground shrink-0">—</span>
                             <span
                               className={cn(
-                                "leading-tight",
+                                "leading-relaxed",
                                 entry.severity === "CRITICAL"
                                   ? "text-red-500 font-semibold"
                                   : entry.severity === "WARNING"
@@ -388,35 +388,35 @@ EMERGENCY CONTACT CHANNELS:
                   )}
 
                   {/* Directive & Distress Dispatch Action */}
-                  <div className="p-2.5 rounded-lg bg-red-500/15 border border-red-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-                    <div className="flex flex-col">
-                      <span className="text-[11px] font-bold text-foreground">
+                  <div className="p-3 rounded-lg bg-red-500/15 border border-red-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs sm:text-sm font-bold text-foreground">
                         Statutory Navigational Directive:
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs sm:text-sm text-foreground/90 font-medium leading-relaxed">
                         {incident.recommendedAction}
                       </span>
                     </div>
                     <Button
                       size="sm"
                       variant="destructive"
-                      className="shrink-0 h-7 text-xs font-semibold gap-1.5 shadow-sm"
+                      className="shrink-0 h-8 text-xs sm:text-sm font-semibold gap-1.5 shadow-sm px-3"
                       onClick={copyDistressReport}
                     >
-                      {copiedReport ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                      {copiedReport ? <Check className="size-4" /> : <Copy className="size-4" />}
                       {copiedReport ? "Copied" : "Copy Distress Report"}
                     </Button>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-muted-foreground">
-                    <span className="font-semibold text-foreground flex items-center gap-1">
-                      <PhoneCall className="size-3 text-red-500" /> Emergency SAR Radios:
+                  <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground flex items-center gap-1.5">
+                      <PhoneCall className="size-3.5 text-red-500" /> Emergency SAR Radios:
                     </span>
-                    <a href="tel:1554" className="hover:text-foreground font-mono underline decoration-dotted">
+                    <a href="tel:1554" className="hover:text-foreground font-mono underline decoration-dotted font-medium">
                       Coast Guard MRCC: 1554
                     </a>
                     <span className="font-mono">VHF Calling: Ch 16 (156.8 MHz)</span>
-                    <a href="tel:1093" className="hover:text-foreground font-mono underline decoration-dotted">
+                    <a href="tel:1093" className="hover:text-foreground font-mono underline decoration-dotted font-medium">
                       Coastal Police: 1093
                     </a>
                   </div>
@@ -428,17 +428,17 @@ EMERGENCY CONTACT CHANNELS:
             <Card className="border-border/60 shadow-2xs">
               <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                    <Radio className="size-3.5 text-primary" />
+                  <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                    <Radio className="size-4 text-primary" />
                     Live Vessel Telemetry
                   </CardTitle>
                   <Badge
                     variant="secondary"
-                    className="text-[10px] font-mono font-medium tracking-tight flex items-center gap-1"
+                    className="text-xs font-mono font-medium tracking-tight flex items-center gap-1.5 px-2.5 py-0.5"
                   >
                     <span
                       className={cn(
-                        "size-1.5 rounded-full",
+                        "size-2 rounded-full",
                         telemetry.trackingStatus === "LIVE_GNSS"
                           ? "bg-emerald-500 animate-pulse"
                           : telemetry.trackingStatus === "CACHED_POSITION"
@@ -455,40 +455,40 @@ EMERGENCY CONTACT CHANNELS:
                 </div>
               </CardHeader>
               <CardContent className="p-3">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-xs">
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block font-medium">Latitude</span>
-                    <span className="font-mono font-semibold text-foreground">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-xs sm:text-sm">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground block font-medium">Latitude</span>
+                    <span className="font-mono font-bold text-foreground text-sm sm:text-base">
                       {telemetry.latitude != null ? `${telemetry.latitude.toFixed(4)}°N` : "Unavailable"}
                     </span>
                   </div>
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block font-medium">Longitude</span>
-                    <span className="font-mono font-semibold text-foreground">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground block font-medium">Longitude</span>
+                    <span className="font-mono font-bold text-foreground text-sm sm:text-base">
                       {telemetry.longitude != null ? `${telemetry.longitude.toFixed(4)}°E` : "Unavailable"}
                     </span>
                   </div>
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block font-medium">Speed Over Ground</span>
-                    <span className="font-mono font-semibold text-foreground">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground block font-medium">Speed Over Ground</span>
+                    <span className="font-mono font-bold text-foreground text-sm sm:text-base">
                       {telemetry.speedKts != null ? `${telemetry.speedKts} kts` : "Unavailable"}
                     </span>
                   </div>
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block font-medium">Compass Heading</span>
-                    <span className="font-mono font-semibold text-foreground truncate block">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground block font-medium">Compass Heading</span>
+                    <span className="font-mono font-bold text-foreground text-sm sm:text-base truncate block">
                       {telemetry.headingCardinal || "Unavailable"}
                     </span>
                   </div>
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block font-medium">GPS Accuracy</span>
-                    <span className="font-mono font-semibold text-foreground">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground block font-medium">GPS Accuracy</span>
+                    <span className="font-mono font-bold text-foreground text-sm sm:text-base">
                       {telemetry.accuracy != null ? `±${telemetry.accuracy}m` : "Unavailable"}
                     </span>
                   </div>
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block font-medium">Last GNSS Update</span>
-                    <span className="font-mono font-semibold text-foreground">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground block font-medium">Last GNSS Update</span>
+                    <span className="font-mono font-bold text-foreground text-xs sm:text-sm">
                       {telemetry.timestamp ? new Date(telemetry.timestamp).toLocaleTimeString() : "Unavailable"}
                     </span>
                   </div>
@@ -511,11 +511,11 @@ EMERGENCY CONTACT CHANNELS:
                     : undefined
                 }
                 hudOverlay={
-                  <div className="flex flex-wrap items-center justify-between gap-2 p-2 px-3 rounded-lg bg-background/90 backdrop-blur-md border border-border/60 shadow-md text-xs font-mono">
-                    <div className="flex items-center gap-1.5">
-                      <Anchor className="size-3.5 text-emerald-500" />
-                      <span className="text-muted-foreground">NEAREST VERIFIED PORT:</span>
-                      <strong className="text-foreground">
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 px-3 rounded-lg bg-background/95 backdrop-blur-md border border-border/60 shadow-md text-xs sm:text-sm font-mono">
+                    <div className="flex items-center gap-2">
+                      <Anchor className="size-4 text-emerald-500 shrink-0" />
+                      <span className="text-muted-foreground font-medium">NEAREST VERIFIED PORT:</span>
+                      <strong className="text-foreground font-bold">
                         {geofence.nearestSafeHarbor.name}
                       </strong>
                       <span className="text-primary font-bold">
@@ -523,11 +523,11 @@ EMERGENCY CONTACT CHANNELS:
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">GEOFENCE:</span>
+                      <span className="text-muted-foreground font-medium">GEOFENCE:</span>
                       <Badge
                         variant="outline"
                         className={cn(
-                          "text-[10px] font-mono",
+                          "text-xs font-mono px-2 py-0.5 font-semibold",
                           geofence.status === "BREACH"
                             ? "border-red-500 text-red-500 bg-red-500/10"
                             : geofence.status === "CRITICAL_PROXIMITY"
@@ -549,11 +549,11 @@ EMERGENCY CONTACT CHANNELS:
               <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                      <AlertTriangle className="size-3.5 text-primary" />
+                    <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                      <AlertTriangle className="size-4 text-primary" />
                       Official Warning
                     </CardTitle>
-                    <Badge variant="outline" className="text-[10px] font-mono">
+                    <Badge variant="outline" className="text-xs font-mono px-2 py-0.5 font-medium">
                       Source: IMD
                     </Badge>
                   </div>
@@ -566,7 +566,7 @@ EMERGENCY CONTACT CHANNELS:
                         : "secondary"
                     }
                     className={cn(
-                      "text-[10px] font-mono font-semibold uppercase tracking-wider",
+                      "text-xs font-mono font-semibold uppercase tracking-wider px-2 py-0.5",
                       officialWarning?.verified &&
                         officialWarning?.status === "NO_ACTIVE_WARNING" &&
                         "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
@@ -580,38 +580,38 @@ EMERGENCY CONTACT CHANNELS:
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="p-3 flex flex-col gap-2.5 text-xs">
+              <CardContent className="p-3.5 flex flex-col gap-3 text-xs sm:text-sm">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-col gap-1">
-                    <span className="font-semibold text-foreground text-xs sm:text-sm">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-bold text-foreground text-sm sm:text-base">
                       {officialWarning?.verified
                         ? officialWarning.status === "ACTIVE_WARNING"
                           ? "Official Advisory: Active Marine Weather Warning"
                           : "No verified warning for selected area"
                         : "Official warning data unavailable"}
                     </span>
-                    <span className="text-[11px] text-muted-foreground leading-snug">
+                    <span className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                       {officialWarning?.advisoryText || "Direct IMD official bulletin feed currently unacquired or unavailable."}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/30 text-[10px] font-mono text-muted-foreground">
-                  <div>
-                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground/70">Source</span>
-                    <span className="font-semibold text-foreground">IMD</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2.5 border-t border-border/30 text-xs font-mono text-muted-foreground">
+                  <div className="p-1.5 rounded bg-muted/30 flex flex-col gap-0.5">
+                    <span className="block text-xs uppercase tracking-wider text-muted-foreground/80 font-medium">Source</span>
+                    <span className="font-semibold text-foreground text-xs sm:text-sm">IMD</span>
                   </div>
-                  <div>
-                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground/70">Area</span>
-                    <span className="font-semibold text-foreground truncate block">{officialWarning?.area || "Coastal Sector"}</span>
+                  <div className="p-1.5 rounded bg-muted/30 flex flex-col gap-0.5">
+                    <span className="block text-xs uppercase tracking-wider text-muted-foreground/80 font-medium">Area</span>
+                    <span className="font-semibold text-foreground text-xs sm:text-sm truncate block">{officialWarning?.area || "Coastal Sector"}</span>
                   </div>
-                  <div>
-                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground/70">Updated</span>
-                    <span className="font-semibold text-foreground">{officialWarning?.issuedAt || "Unavailable"}</span>
+                  <div className="p-1.5 rounded bg-muted/30 flex flex-col gap-0.5">
+                    <span className="block text-xs uppercase tracking-wider text-muted-foreground/80 font-medium">Updated</span>
+                    <span className="font-semibold text-foreground text-xs sm:text-sm">{officialWarning?.issuedAt || "Unavailable"}</span>
                   </div>
-                  <div>
-                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground/70">Verification</span>
-                    <span className="font-semibold text-foreground">{officialWarning?.verified ? "Authoritative Live" : "Unverified / Degraded"}</span>
+                  <div className="p-1.5 rounded bg-muted/30 flex flex-col gap-0.5">
+                    <span className="block text-xs uppercase tracking-wider text-muted-foreground/80 font-medium">Verification</span>
+                    <span className="font-semibold text-foreground text-xs sm:text-sm">{officialWarning?.verified ? "Authoritative Live" : "Unverified / Degraded"}</span>
                   </div>
                 </div>
 
@@ -621,7 +621,7 @@ EMERGENCY CONTACT CHANNELS:
                       href={officialWarning.officialBulletinUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[10px] text-primary underline hover:text-primary/80 inline-flex items-center gap-1 font-mono"
+                      className="text-xs sm:text-sm text-primary underline hover:text-primary/80 inline-flex items-center gap-1 font-mono font-medium"
                     >
                       <span>🔗 View Official IMD RSMC Fishermen Bulletin (PDF)</span>
                     </a>
@@ -635,18 +635,18 @@ EMERGENCY CONTACT CHANNELS:
               <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                      <ShieldCheck className="size-3.5 text-primary" />
+                    <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                      <ShieldCheck className="size-4 text-primary" />
                       SagarDrishti Risk Assessment
                     </CardTitle>
-                    <Badge variant="outline" className="text-[10px] font-mono">
+                    <Badge variant="outline" className="text-xs font-mono px-2 py-0.5 font-medium">
                       Deterministic Engine
                     </Badge>
                   </div>
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-[10px] font-mono font-semibold uppercase tracking-wider",
+                      "text-xs font-mono font-semibold uppercase tracking-wider px-2 py-0.5",
                       riskAssessment?.level === "CODE_RED"
                         ? "bg-red-500/15 text-red-500 border-red-500/30 animate-pulse"
                         : riskAssessment?.level === "CODE_ORANGE"
@@ -660,38 +660,38 @@ EMERGENCY CONTACT CHANNELS:
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="p-3 flex flex-col gap-2 text-xs">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-foreground">
+              <CardContent className="p-3.5 flex flex-col gap-2.5 text-xs sm:text-sm">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between flex-wrap gap-1">
+                    <span className="font-bold text-foreground text-sm sm:text-base">
                       IMO FSA Risk Index: {riskAssessment?.riskIndex ?? 2} (Score: {riskAssessment?.riskScore ?? 20}/100)
                     </span>
-                    <span className="text-[10px] font-mono text-muted-foreground">
+                    <span className="text-xs font-mono text-muted-foreground font-medium">
                       MSC-MEPC.2/Circ.12/Rev.2
                     </span>
                   </div>
-                  <span className="text-[11px] text-muted-foreground leading-snug">
+                  <span className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                     {riskAssessment?.reasoning || "Sea and atmospheric conditions within safe operational margins."}
                   </span>
                 </div>
 
-                <div className="p-2 rounded-md bg-secondary/30 border border-border/40 text-[11px] flex flex-col gap-1">
-                  <span className="font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
+                <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 text-xs flex flex-col gap-1.5">
+                  <span className="font-semibold text-xs text-foreground uppercase tracking-wider">
                     Assessment Deterministic Basis:
                   </span>
                   {riskAssessment?.basis?.map((b, i) => (
-                    <div key={i} className="flex items-center gap-1.5 text-muted-foreground font-mono text-[10px]">
-                      <span className="size-1 rounded-full bg-primary shrink-0" />
+                    <div key={i} className="flex items-center gap-2 text-muted-foreground font-mono text-xs">
+                      <span className="size-1.5 rounded-full bg-primary shrink-0" />
                       <span>{b}</span>
                     </div>
                   )) || (
-                    <span className="text-muted-foreground font-mono text-[10px]">
+                    <span className="text-muted-foreground font-mono text-xs">
                       ECMWF IFS 0.25° Wind + Copernicus Marine Waves
                     </span>
                   )}
                 </div>
 
-                <div className="text-[10px] text-muted-foreground/80 italic">
+                <div className="text-xs text-muted-foreground/85 leading-normal italic">
                   Note: SagarDrishti Risk Assessment is an automated algorithmic decision-support tool. It is not an official government directive. Master retains absolute navigational discretion.
                 </div>
               </CardContent>
@@ -701,24 +701,24 @@ EMERGENCY CONTACT CHANNELS:
             <Card className="border-border/60 shadow-2xs">
               <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                    <AlertTriangle className="size-3.5 text-primary" />
+                  <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                    <AlertTriangle className="size-4 text-primary" />
                     Monitored Safety Alerts ({activeAlerts.length})
                   </CardTitle>
-                  <span className="text-[10px] text-muted-foreground">
-                    Derived strictly from live sensor & geospatial engines
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                    Live sensor & geospatial telemetry
                   </span>
                 </div>
               </CardHeader>
-              <CardContent className="p-3 flex flex-col gap-2">
+              <CardContent className="p-3.5 flex flex-col gap-2.5">
                 {activeAlerts.length === 0 ? (
-                  <div className="flex items-center gap-2.5 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs">
-                    <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                  <div className="flex items-center gap-3 p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs sm:text-sm">
+                    <CheckCircle2 className="size-5 text-emerald-500 shrink-0" />
                     <div>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400 block text-xs">
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-sm sm:text-base">
                         ALL MONITORED SYSTEMS NORMAL — No Active Security or Environmental Alerts
                       </span>
-                      <span className="text-[11px] text-muted-foreground block mt-0.5">
+                      <span className="text-xs sm:text-sm text-muted-foreground block mt-0.5">
                         Autonomous monitoring of 7 coastal zones, statutory IMBL borders, and ECMWF / Copernicus Marine models is active.
                       </span>
                     </div>
@@ -728,31 +728,31 @@ EMERGENCY CONTACT CHANNELS:
                     <div
                       key={alert.id}
                       className={cn(
-                        "flex items-start justify-between gap-2 p-2.5 rounded-lg border text-xs",
+                        "flex items-start justify-between gap-2.5 p-3 rounded-lg border text-xs sm:text-sm",
                         alert.severity === "CRITICAL"
                           ? "bg-red-500/10 border-red-500/35"
                           : "bg-amber-500/10 border-amber-500/35"
                       )}
                     >
-                      <div className="flex items-start gap-2">
+                      <div className="flex items-start gap-2.5">
                         {alert.severity === "CRITICAL" ? (
-                          <AlertOctagon className="size-4 text-red-500 shrink-0 mt-0.5 animate-pulse" />
+                          <AlertOctagon className="size-4.5 text-red-500 shrink-0 mt-0.5 animate-pulse" />
                         ) : (
-                          <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                          <AlertTriangle className="size-4.5 text-amber-500 shrink-0 mt-0.5" />
                         )}
-                        <div className="flex flex-col">
+                        <div className="flex flex-col gap-0.5">
                           <span
                             className={cn(
-                              "font-bold text-xs",
+                              "font-bold text-sm",
                               alert.severity === "CRITICAL" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"
                             )}
                           >
                             {alert.title}
                           </span>
-                          <span className="text-[11px] text-foreground/90 mt-0.5 leading-snug">
+                          <span className="text-xs sm:text-sm text-foreground/90 leading-snug">
                             {alert.description}
                           </span>
-                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1 font-mono">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 font-mono">
                             <span>Sector: {alert.affectedLocation}</span>
                             <span>•</span>
                             <span>Source: {alert.source}</span>
@@ -761,7 +761,7 @@ EMERGENCY CONTACT CHANNELS:
                       </div>
                       <Badge
                         variant={alert.severity === "CRITICAL" ? "destructive" : "outline"}
-                        className="text-[9px] uppercase font-mono shrink-0"
+                        className="text-xs uppercase font-mono shrink-0 px-2 py-0.5"
                       >
                         {alert.timeAgo}
                       </Badge>
@@ -776,76 +776,76 @@ EMERGENCY CONTACT CHANNELS:
               <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                      <Waves className="size-3.5 text-primary" />
+                    <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                      <Waves className="size-4 text-primary" />
                       Environmental & Sea Conditions (IMO FSA Standard)
                     </CardTitle>
-                    <Badge variant="outline" className="text-[10px] font-mono">
+                    <Badge variant="outline" className="text-xs font-mono px-2 py-0.5">
                       Autonomous Polling
                     </Badge>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-6 text-muted-foreground hover:text-foreground"
+                    className="size-7 text-muted-foreground hover:text-foreground"
                     onClick={refreshWeather}
                   >
-                    <RefreshCw className="size-3" />
+                    <RefreshCw className="size-3.5" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-3 flex flex-col gap-2.5">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block flex items-center gap-1">
-                      <Wind className="size-3" /> Sustained Wind
+              <CardContent className="p-3.5 flex flex-col gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs sm:text-sm">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                      <Wind className="size-3.5" /> Sustained Wind
                     </span>
-                    <span className="font-mono font-semibold text-foreground text-sm">
+                    <span className="font-mono font-bold text-foreground text-base sm:text-lg">
                       {weather.windSpeedKmph != null ? `${weather.windSpeedKmph} km/h` : "Unavailable"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground block">
+                    <span className="text-xs text-muted-foreground">
                       Gusts: {weather.windGustsKmph != null ? `${weather.windGustsKmph} km/h` : "N/A"}
                     </span>
                   </div>
 
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block flex items-center gap-1">
-                      <Waves className="size-3" /> Significant Waves
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                      <Waves className="size-3.5" /> Significant Waves
                     </span>
-                    <span className="font-mono font-semibold text-foreground text-sm">
+                    <span className="font-mono font-bold text-foreground text-base sm:text-lg">
                       {weather.waveHeightMeters != null ? `${weather.waveHeightMeters} m` : "Unavailable"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground block">
+                    <span className="text-xs text-muted-foreground">
                       Period: {weather.wavePeriodSeconds != null ? `${weather.wavePeriodSeconds}s` : "N/A"}
                     </span>
                   </div>
 
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block flex items-center gap-1">
-                      <Compass className="size-3" /> Ocean Current
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                      <Compass className="size-3.5" /> Ocean Current
                     </span>
-                    <span className="font-mono font-semibold text-foreground text-sm">
+                    <span className="font-mono font-bold text-foreground text-base sm:text-lg">
                       {weather.currentVelocityMs != null ? `${weather.currentVelocityMs} m/s` : "Unavailable"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground block">
+                    <span className="text-xs text-muted-foreground">
                       Sea: {weather.seaStateCategory}
                     </span>
                   </div>
 
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block flex items-center gap-1">
-                      <Shield className="size-3" /> Cyclone Threat
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                      <Shield className="size-3.5" /> Cyclone Threat
                     </span>
-                    <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400 text-sm">
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-base sm:text-lg">
                       {cyclone.status}
                     </span>
-                    <span className="text-[10px] text-muted-foreground block truncate">
+                    <span className="text-xs text-muted-foreground truncate block">
                       {cyclone.summary}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-2 rounded-md bg-muted/30 border border-border/30 flex flex-wrap items-center justify-between gap-1 text-[10px] text-muted-foreground font-mono">
+                <div className="p-2.5 rounded-md bg-muted/30 border border-border/30 flex flex-wrap items-center justify-between gap-1.5 text-xs text-muted-foreground font-mono">
                   <span>Source: {weather.source}</span>
                   <span>
                     Last Polled:{" "}
@@ -859,14 +859,14 @@ EMERGENCY CONTACT CHANNELS:
             <Card className="border-border/60 shadow-2xs">
               <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                    <MapPin className="size-3.5 text-primary" />
+                  <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                    <MapPin className="size-4 text-primary" />
                     Geofence & Boundary Proximity Engine
                   </CardTitle>
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-[10px] font-mono",
+                      "text-xs font-mono px-2.5 py-0.5 font-semibold",
                       geofence.status === "BREACH"
                         ? "border-red-500/40 text-red-500 bg-red-500/10 animate-pulse"
                         : geofence.status === "CRITICAL_PROXIMITY"
@@ -880,43 +880,43 @@ EMERGENCY CONTACT CHANNELS:
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="p-3 text-xs flex flex-col gap-2.5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-mono">
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block">Nearest Restricted Zone</span>
-                    <strong className="text-foreground text-xs truncate block">{geofence.nearestZoneName}</strong>
-                    <span className="text-[10px] text-muted-foreground uppercase">{geofence.zoneType}</span>
+              <CardContent className="p-3.5 text-xs sm:text-sm flex flex-col gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 font-mono">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground block font-medium">Nearest Restricted Zone</span>
+                    <strong className="text-foreground text-sm sm:text-base font-bold truncate block tracking-tight">{geofence.nearestZoneName}</strong>
+                    <span className="text-xs text-muted-foreground uppercase font-medium">{geofence.zoneType}</span>
                   </div>
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block">Distance to Boundary</span>
-                    <strong className="text-foreground text-xs block">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground block font-medium">Distance to Boundary</span>
+                    <strong className="text-foreground text-base sm:text-lg font-bold block">
                       {geofence.distanceToBoundaryKm != null ? `${geofence.distanceToBoundaryKm} km` : "N/A"}
                     </strong>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       Buffer limit: 25.0 km
                     </span>
                   </div>
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block">Recommended Return Bearing</span>
-                    <strong className="text-emerald-600 dark:text-emerald-400 text-xs block">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground block font-medium">Recommended Return Bearing</span>
+                    <strong className="text-emerald-600 dark:text-emerald-400 text-base sm:text-lg font-bold block">
                       {geofence.returnBearing}
                     </strong>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground truncate block">
                       Toward {geofence.nearestSafeHarbor.name}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-2 rounded-lg bg-secondary/30 border border-border/40 flex items-start gap-2 text-xs">
-                  <Info className="size-4 text-primary shrink-0 mt-0.5" />
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-foreground">
+                <div className="p-3 rounded-lg bg-secondary/30 border border-border/40 flex items-start gap-2.5 text-xs sm:text-sm">
+                  <Info className="size-4.5 text-primary shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-1">
+                    <span className="font-bold text-foreground text-sm sm:text-base">
                       Navigational Directive:
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-xs sm:text-sm text-foreground/95 font-medium leading-relaxed">
                       {geofence.recommendedAction}
                     </span>
-                    <span className="text-[10px] text-muted-foreground/80 mt-1 italic">
+                    <span className="text-xs text-muted-foreground/85 mt-1 leading-normal italic">
                       Notice: Autonomous decision-support advisory only. Vessel master and onboard navigation radar retain statutory maritime authority.
                     </span>
                   </div>
@@ -929,46 +929,46 @@ EMERGENCY CONTACT CHANNELS:
               <Card className="border-border/60 shadow-2xs">
                 <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                      <Navigation className="size-3.5 text-primary" />
+                    <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                      <Navigation className="size-4 text-primary" />
                       Nearest Verified Major Port (MoPSW Registry)
                     </CardTitle>
-                    <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                    <Badge variant="outline" className="text-xs font-mono border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 font-medium">
                       {geofence.nearestSafeHarbor.verificationStatus || "VERIFIED_GOVERNMENT"}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="p-3 text-xs flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-sm text-foreground">
+                <CardContent className="p-3.5 text-xs sm:text-sm flex flex-col gap-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2.5">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-bold text-base sm:text-lg text-foreground">
                         {geofence.nearestSafeHarbor.name} ({geofence.nearestSafeHarbor.state})
                       </span>
-                      <span className="text-muted-foreground text-[11px]">
+                      <span className="text-muted-foreground text-xs sm:text-sm">
                         Authority: {geofence.nearestSafeHarbor.authority || "Major Port Authority"}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <div className="text-right font-mono">
-                        <span className="font-bold text-primary block">
+                        <span className="font-bold text-primary block text-base sm:text-lg">
                           {geofence.nearestSafeHarbor.distanceNM} NM
                         </span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           ({geofence.nearestSafeHarbor.distanceKm} km)
                         </span>
                       </div>
-                      <Badge variant="secondary" className="font-mono text-xs font-semibold px-2 py-1">
+                      <Badge variant="secondary" className="font-mono text-xs sm:text-sm font-bold px-2.5 py-1">
                         Vector: {geofence.returnBearing}
                       </Badge>
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t text-[11px] text-muted-foreground flex items-center justify-between">
+                  <div className="pt-2 border-t border-border/30 text-xs sm:text-sm text-muted-foreground flex items-center justify-between flex-wrap gap-1">
                     <span>Assigned SAR Coordination Center:</span>
-                    <span className="font-medium text-foreground">{geofence.nearestSafeHarbor.assignedMrcc}</span>
+                    <span className="font-semibold text-foreground">{geofence.nearestSafeHarbor.assignedMrcc}</span>
                   </div>
 
-                  <div className="p-2 rounded bg-muted/30 border border-border/30 text-[10px] text-muted-foreground italic">
+                  <div className="p-2.5 rounded bg-muted/30 border border-border/30 text-xs text-muted-foreground italic leading-relaxed">
                     ⚠️ {geofence.nearestSafeHarbor.navigationDisclaimer || "Decision-support only. Port suitability depends on vessel class, draft, weather, harbour status and navigation conditions."}
                   </div>
                 </CardContent>
@@ -979,14 +979,14 @@ EMERGENCY CONTACT CHANNELS:
             <Card className="border-border/60 shadow-2xs">
               <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                    <Shield className="size-3.5 text-primary" />
+                  <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                    <Shield className="size-4 text-primary" />
                     Data Quality, Integrity & Provenance Audit
                   </CardTitle>
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-[10px] font-mono",
+                      "text-xs font-mono px-2.5 py-0.5 font-medium",
                       dataIntegrity.autonomousMode === "ENABLED"
                         ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
                         : "border-amber-500/40 text-amber-500 bg-amber-500/10"
@@ -996,59 +996,59 @@ EMERGENCY CONTACT CHANNELS:
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="p-3 text-xs flex flex-col gap-2.5">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block">GNSS RECEIVER</span>
-                    <strong className={cn(dataIntegrity.gnssStatus === "LIVE" ? "text-emerald-500" : "text-amber-500")}>
+              <CardContent className="p-3.5 text-xs sm:text-sm flex flex-col gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-xs sm:text-sm">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground block font-medium">GNSS RECEIVER</span>
+                    <strong className={cn("text-xs sm:text-sm font-bold", dataIntegrity.gnssStatus === "LIVE" ? "text-emerald-500" : "text-amber-500")}>
                       {dataIntegrity.gnssStatus}
                     </strong>
                   </div>
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block">BOUNDARY DATA</span>
-                    <strong className="text-emerald-500">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground block font-medium">BOUNDARY DATA</span>
+                    <strong className="text-emerald-500 text-xs sm:text-sm font-bold">
                       {dataIntegrity.boundaryDataStatus}
                     </strong>
                   </div>
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block">PORT REGISTRY</span>
-                    <strong className="text-emerald-500">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground block font-medium">PORT REGISTRY</span>
+                    <strong className="text-emerald-500 text-xs sm:text-sm font-bold">
                       {dataIntegrity.portDataStatus} (12 Ports)
                     </strong>
                   </div>
-                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
-                    <span className="text-[10px] text-muted-foreground block">WEATHER STREAM</span>
-                    <strong className="text-emerald-500">
+                  <div className="p-2.5 rounded-md bg-secondary/30 border border-border/40 flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground block font-medium">WEATHER STREAM</span>
+                    <strong className="text-emerald-500 text-xs sm:text-sm font-bold">
                       {dataIntegrity.weatherDataStatus}
                     </strong>
                   </div>
                 </div>
 
                 {dataIntegrity.gatingReason && (
-                  <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-700 dark:text-amber-300">
+                  <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-xs sm:text-sm text-amber-700 dark:text-amber-300 leading-relaxed">
                     ⚠️ <strong>Autonomous Safety Note:</strong> {dataIntegrity.gatingReason}
                   </div>
                 )}
 
                 {/* Active Boundary Provenance Details */}
                 {geofence.provenance && (
-                  <div className="p-2.5 rounded-lg bg-secondary/20 border border-border/40 text-[11px] flex flex-col gap-1.5 font-mono">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-foreground">{geofence.provenance.sourceName}</span>
-                      <Badge variant="outline" className="text-[9px] py-0 px-1 border-primary/40 text-primary">
+                  <div className="p-3 rounded-lg bg-secondary/20 border border-border/40 text-xs sm:text-sm flex flex-col gap-2 font-mono">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <span className="font-bold text-foreground text-xs sm:text-sm">{geofence.provenance.sourceName}</span>
+                      <Badge variant="outline" className="text-xs py-0.5 px-2 border-primary/40 text-primary font-medium">
                         {geofence.provenance.verificationStatus}
                       </Badge>
                     </div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       <span>Legal Instrument: {geofence.provenance.sourceDocument}</span>
                     </div>
-                    <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-3">
+                    <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
                       <span>Authority: {geofence.provenance.sourceOrganization}</span>
                       <span>Datum: {geofence.provenance.coordinateReferenceSystem}</span>
                       <span>Breach Trigger: {geofence.provenance.canTriggerAutonomousBoundaryIncident ? "ENABLED" : "GATED / DISABLED"}</span>
                     </div>
                     {geofence.provenance.notes && (
-                      <div className="text-[10px] text-muted-foreground/90 italic pt-1 border-t border-border/30">
+                      <div className="text-xs text-muted-foreground/90 italic pt-1.5 border-t border-border/30 leading-relaxed">
                         {geofence.provenance.notes}
                       </div>
                     )}
