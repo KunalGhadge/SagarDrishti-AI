@@ -8,15 +8,22 @@ export default async function AgentsLoading() {
 
   return (
     <div className="w-full flex flex-col gap-4 p-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">{t("Layout.agents")}</h1>
-        <Skeleton className="h-10 w-32" />
+      <div className="flex justify-between items-start gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold">Multi-Agent Orchestration Fleet</h1>
+          <p className="text-sm text-muted-foreground max-w-3xl">
+            Autonomous marine intelligence specialists coordinated by the Master Marine Planner. All specialist agents and custom user agents are dynamically routed and orchestrated for multi-agent tactical missions.
+          </p>
+        </div>
+        <Skeleton className="h-10 w-32 shrink-0" />
       </div>
 
-      {/* My Agents Section */}
+      {/* Custom Agents Section */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">{t("Agent.myAgents")}</h2>
+          <h2 className="text-lg font-semibold">
+            Custom Agents (Multi-Agent Integrated)
+          </h2>
           <div className="flex-1 h-px bg-border" />
         </div>
 
@@ -31,7 +38,9 @@ export default async function AgentsLoading() {
                 <h1 className="text-lg font-bold">{t("Agent.newAgent")}</h1>
               </CardTitle>
               <CardDescription className="mt-2">
-                <p>{t("Layout.createYourOwnAgent")}</p>
+                <p>
+                  Deploy a custom specialist agent. Automatically ingested into multi-agent orchestration and task routing.
+                </p>
               </CardDescription>
               <div className="mt-auto ml-auto flex-1">
                 <Skeleton className="h-10 w-20" />
@@ -40,7 +49,7 @@ export default async function AgentsLoading() {
           </Card>
 
           {/* Agent cards */}
-          {Array(5)
+          {Array(2)
             .fill(null)
             .map((_, i) => (
               <Skeleton key={i} className="min-h-[196px]" />
@@ -48,10 +57,12 @@ export default async function AgentsLoading() {
         </div>
       </div>
 
-      {/* Shared Agents Section */}
+      {/* Specialized Marine Multi-Agent Fleet Section */}
       <div className="flex flex-col gap-4 mt-8">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">{t("Agent.sharedAgents")}</h2>
+          <h2 className="text-lg font-semibold">
+            Specialized Marine Multi-Agent Fleet
+          </h2>
           <div className="flex-1 h-px bg-border" />
         </div>
 

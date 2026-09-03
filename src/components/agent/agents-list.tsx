@@ -15,10 +15,43 @@ import { fetcher } from "lib/utils";
 import { Visibility } from "@/components/shareable-actions";
 import { ShareableCard } from "@/components/shareable-card";
 import { notify } from "lib/notify";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { handleErrorWithToast } from "ui/shared-toast";
 import { safe } from "ts-safe";
 import { canCreateAgent } from "lib/auth/client-permissions";
+import {
+  SAGARDRISHTI_PRESEEDED_AGENTS,
+  SLUG_TO_UUID_MAP,
+  UUID_TO_SLUG_MAP,
+} from "lib/ai/marine-agents-seed";
+
+const DEFAULT_SYSTEM_AGENTS: AgentSummary[] = SAGARDRISHTI_PRESEEDED_AGENTS.map(
+  (agent) => ({
+    id: SLUG_TO_UUID_MAP[agent.id] || agent.id,
+    name: agent.name,
+    description: agent.description,
+    icon: agent.icon,
+    userId: agent.userId || "system",
+    visibility: (agent.visibility || "public") as any,
+    isBookmarked: false,
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+  })
+);
+
+const PRESEEDED_ID_SET = new Set<string>([
+  ...Object.keys(SLUG_TO_UUID_MAP),
+  ...Object.values(SLUG_TO_UUID_MAP),
+  ...SAGARDRISHTI_PRESEEDED_AGENTS.map((a) => a.id),
+]);
+
+function isDefaultAgent(agent: { id: string; name?: string }): boolean {
+  if (!agent) return false;
+  if (PRESEEDED_ID_SET.has(agent.id)) return true;
+  return SAGARDRISHTI_PRESEEDED_AGENTS.some(
+    (p) => p.name.toLowerCase() === (agent.name || "").toLowerCase()
+  );
+}
 
 interface AgentsListProps {
   initialMyAgents: AgentSummary[];
@@ -50,13 +83,55 @@ export function AgentsList({
     },
   );
 
-  const myAgents =
-    allAgents?.filter((agent: AgentSummary) => agent.userId === userId) ||
-    initialMyAgents;
+  const rawAgents: AgentSummary[] =
+    allAgents || [...initialMyAgents, ...initialSharedAgents];
 
-  const sharedAgents =
-    allAgents?.filter((agent: AgentSummary) => agent.userId !== userId) ||
-    initialSharedAgents;
+  // Custom agents created by this user (non-default)
+  const customAgents = rawAgents.filter(
+    (agent: AgentSummary) => agent.userId === userId && !isDefaultAgent(agent)
+  );
+
+  // Core fleet & shared agents (deduplicated by normalized ID & name)
+  const fleetAgents = useMemo(() => {
+    const list: AgentSummary[] = [];
+    const seenIds = new Set<string>();
+
+    const normalize = (id: string) => {
+      return SLUG_TO_UUID_MAP[id] || UUID_TO_SLUG_MAP[id] || id;
+    };
+
+    const add = (agent: AgentSummary) => {
+      if (!agent || !agent.id) return;
+      const key1 = agent.id;
+      const key2 = normalize(agent.id);
+      const nameKey = agent.name ? agent.name.toLowerCase().trim() : undefined;
+      if (
+        seenIds.has(key1) ||
+        seenIds.has(key2) ||
+        (nameKey && seenIds.has(nameKey))
+      ) {
+        return;
+      }
+      seenIds.add(key1);
+      seenIds.add(key2);
+      if (nameKey) seenIds.add(nameKey);
+      list.push(agent);
+    };
+
+    // First add DB versions of default and shared agents
+    for (const a of rawAgents) {
+      if (isDefaultAgent(a) || a.userId !== userId) {
+        add(a);
+      }
+    }
+
+    // Ensure all 6 default preseeded agents are present
+    for (const p of DEFAULT_SYSTEM_AGENTS) {
+      add(p);
+    }
+
+    return list;
+  }, [rawAgents, userId]);
 
   const { toggleBookmark: toggleBookmarkHook, isLoading: isBookmarkLoading } =
     useBookmark({
@@ -111,16 +186,21 @@ export function AgentsList({
   };
 
   // Check if user can create agents using Better Auth permissions
-  const canCreate = canCreateAgent(userRole);
+  const canCreate = canCreateAgent(userRole ?? "editor");
 
   return (
     <div className="w-full flex flex-col gap-4 p-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold" data-testid="agents-title">
-          {t("Layout.agents")}
-        </h1>
+      <div className="flex justify-between items-start gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold" data-testid="agents-title">
+            Multi-Agent Orchestration Fleet
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-3xl">
+            Autonomous marine intelligence specialists coordinated by the Master Marine Planner. All specialist agents and custom user agents are dynamically routed and orchestrated for multi-agent tactical missions.
+          </p>
+        </div>
         {canCreate && (
-          <Link href="/agent/new">
+          <Link href="/agent/new" className="shrink-0">
             <Button variant="ghost" data-testid="create-agent-button">
               <Plus />
               {t("Agent.newAgent")}
@@ -129,45 +209,47 @@ export function AgentsList({
         )}
       </div>
 
-      {/* My Agents Section */}
+      {/* Custom User Agents Section */}
       {canCreate && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">{t("Agent.myAgents")}</h2>
+            <h2 className="text-lg font-semibold">
+              Custom Agents (Multi-Agent Integrated)
+            </h2>
             <div className="flex-1 h-px bg-border" />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {canCreate && (
-              <Link href="/agent/new">
-                <Card
-                  className="relative bg-secondary overflow-hidden cursor-pointer hover:bg-input transition-colors h-[196px]"
-                  data-testid="create-agent-card"
-                >
-                  <div className="absolute inset-0 w-full h-full opacity-50">
-                    <BackgroundPaths />
+            <Link href="/agent/new">
+              <Card
+                className="relative bg-secondary overflow-hidden cursor-pointer hover:bg-input transition-colors h-[196px]"
+                data-testid="create-agent-card"
+              >
+                <div className="absolute inset-0 w-full h-full opacity-50">
+                  <BackgroundPaths />
+                </div>
+                <CardHeader>
+                  <CardTitle>
+                    <h1 className="text-lg font-bold">
+                      {t("Agent.newAgent")}
+                    </h1>
+                  </CardTitle>
+                  <CardDescription className="mt-2">
+                    <p>
+                      Deploy a custom specialist agent. Automatically ingested into multi-agent orchestration and task routing.
+                    </p>
+                  </CardDescription>
+                  <div className="mt-auto ml-auto flex-1">
+                    <Button variant="ghost" size="lg">
+                      {t("Common.create")}
+                      <ArrowUpRight className="size-3.5" />
+                    </Button>
                   </div>
-                  <CardHeader>
-                    <CardTitle>
-                      <h1 className="text-lg font-bold">
-                        {t("Agent.newAgent")}
-                      </h1>
-                    </CardTitle>
-                    <CardDescription className="mt-2">
-                      <p>{t("Layout.createYourOwnAgent")}</p>
-                    </CardDescription>
-                    <div className="mt-auto ml-auto flex-1">
-                      <Button variant="ghost" size="lg">
-                        {t("Common.create")}
-                        <ArrowUpRight className="size-3.5" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                </Card>
-              </Link>
-            )}
+                </CardHeader>
+              </Card>
+            </Link>
 
-            {myAgents.map((agent) => (
+            {customAgents.map((agent) => (
               <ShareableCard
                 key={agent.id}
                 type="agent"
@@ -183,28 +265,28 @@ export function AgentsList({
         </div>
       )}
 
-      {/* Shared/Available Agents Section */}
+      {/* Specialized Marine Multi-Agent Fleet */}
       <div className="flex flex-col gap-4 mt-8">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">
-            {canCreate ? t("Agent.sharedAgents") : t("Agent.availableAgents")}
+            Specialized Marine Multi-Agent Fleet
           </h2>
           <div className="flex-1 h-px bg-border" />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {sharedAgents.map((agent) => (
+          {fleetAgents.map((agent) => (
             <ShareableCard
               key={agent.id}
               type="agent"
               item={agent}
-              isOwner={false}
+              isOwner={agent.userId === userId && !isDefaultAgent(agent)}
               href={`/agent/${agent.id}`}
               onBookmarkToggle={toggleBookmark}
               isBookmarkToggleLoading={isBookmarkLoading(agent.id)}
             />
           ))}
-          {sharedAgents.length === 0 && (
+          {fleetAgents.length === 0 && (
             <Card className="col-span-full bg-transparent border-none">
               <CardHeader className="text-center py-12">
                 <CardTitle>
