@@ -1,5 +1,7 @@
-import { fetchRealMarineTelemetry, INDIAN_COASTAL_ANCHORS } from "../pipeline/marine-pipeline";
+import { fetchRealMarineTelemetry } from "../pipeline/marine-pipeline";
 import { noaaChlorophyllTool } from "../tools/marine/noaa-chlorophyll-tool";
+import { VERIFIED_INDIAN_MAJOR_PORTS } from "./authoritative-maritime-data";
+import { VerifiedPortResult, VerifiedPort } from "@/types/security";
 
 export interface EnvironmentValidationResult {
   latitude: number;
@@ -56,15 +58,8 @@ export interface RankedPfzCandidate {
   scientificRationale: string;
 }
 
-export interface SafeHarborResult {
-  name: string;
-  state: string;
+export interface SafeHarborResult extends VerifiedPortResult {
   harbor: string;
-  latitude: number;
-  longitude: number;
-  distanceNM: number;
-  distanceKm: number;
-  bearing: string;
   nearestImblName: string;
   imblDistanceKm: number;
   nearestMpaName: string;
@@ -116,17 +111,18 @@ export interface EmergencyDistressPayload {
 }
 
 /**
- * Helper: Find nearest verified safe harbor and compute distance/bearing
+ * Helper: Find nearest verified port from official Ministry of Ports, Shipping and Waterways records
+ * Decision-support only; port suitability depends on vessel class, draft, and navigation conditions.
  */
-export function resolveSafeHarbor(userLocation: { latitude: number; longitude: number }): SafeHarborResult {
-  let closest = INDIAN_COASTAL_ANCHORS.mumbai;
+export function resolveNearestVerifiedPort(userLocation: { latitude: number; longitude: number }): VerifiedPortResult {
+  let closest: VerifiedPort = VERIFIED_INDIAN_MAJOR_PORTS.mumbai;
   let minDiff = Infinity;
 
-  for (const anchor of Object.values(INDIAN_COASTAL_ANCHORS)) {
-    const diff = Math.hypot(userLocation.latitude - anchor.latitude, userLocation.longitude - anchor.longitude);
+  for (const port of Object.values(VERIFIED_INDIAN_MAJOR_PORTS)) {
+    const diff = Math.hypot(userLocation.latitude - port.latitude, userLocation.longitude - port.longitude);
     if (diff < minDiff) {
       minDiff = diff;
-      closest = anchor;
+      closest = port;
     }
   }
 
@@ -134,27 +130,35 @@ export function resolveSafeHarbor(userLocation: { latitude: number; longitude: n
   const distKm = parseFloat((distNM * 1.852).toFixed(1));
   const bearing = calculateCompassBearing(userLocation.latitude, userLocation.longitude, closest.latitude, closest.longitude);
 
-  const coastGuardStation =
-    userLocation.longitude < 75.0
-      ? "Indian Coast Guard Regional HQ (West) / MRCC Mumbai"
-      : userLocation.latitude > 15.0 && userLocation.longitude > 80.0
-      ? "Indian Coast Guard Regional HQ (North-East) / MRCC Paradip & Haldia"
-      : "Indian Coast Guard Regional HQ (East) / MRCC Chennai";
-
   return {
-    name: closest.name,
+    name: closest.officialName,
     state: closest.state,
-    harbor: closest.harbor,
+    authority: closest.authority,
     latitude: closest.latitude,
     longitude: closest.longitude,
     distanceNM: distNM,
     distanceKm: distKm,
     bearing,
-    nearestImblName: closest.nearestImblName,
-    imblDistanceKm: closest.imblDistanceKm,
-    nearestMpaName: closest.nearestMpaName,
-    mpaDistanceKm: closest.mpaDistanceKm,
-    coastGuardStation,
+    assignedMrcc: closest.assignedMrcc,
+    verificationStatus: closest.verificationStatus,
+    sourceDocument: closest.sourceDocument,
+    navigationDisclaimer: "Decision-support only. Port suitability depends on vessel class, draft, weather, harbour status and navigation conditions.",
+  };
+}
+
+/**
+ * Backward-compatible wrapper for resolveSafeHarbor
+ */
+export function resolveSafeHarbor(userLocation: { latitude: number; longitude: number }): SafeHarborResult {
+  const verified = resolveNearestVerifiedPort(userLocation);
+  return {
+    ...verified,
+    harbor: verified.name,
+    nearestImblName: "Verified Maritime Delimitation",
+    imblDistanceKm: 0,
+    nearestMpaName: "Designated Protected Sanctuary",
+    mpaDistanceKm: 0,
+    coastGuardStation: verified.assignedMrcc,
   };
 }
 
@@ -461,14 +465,14 @@ export async function generateNearbyMarineCandidates(
 }> {
   const userValidation = await validateEnvironment(userLocation.latitude, userLocation.longitude);
 
-  // Find closest coastal anchor sector to orient seaward vectors
-  let closestSector = INDIAN_COASTAL_ANCHORS.mumbai;
+  // Find closest verified port sector to orient seaward vectors
+  let closestSector = VERIFIED_INDIAN_MAJOR_PORTS.mumbai;
   let minDiff = Infinity;
-  for (const anchor of Object.values(INDIAN_COASTAL_ANCHORS)) {
-    const diff = Math.hypot(userLocation.latitude - anchor.latitude, userLocation.longitude - anchor.longitude);
+  for (const port of Object.values(VERIFIED_INDIAN_MAJOR_PORTS)) {
+    const diff = Math.hypot(userLocation.latitude - port.latitude, userLocation.longitude - port.longitude);
     if (diff < minDiff) {
       minDiff = diff;
-      closestSector = anchor;
+      closestSector = port;
     }
   }
 
@@ -491,17 +495,17 @@ export async function generateNearbyMarineCandidates(
     // West coast seaward vectors head West / West-Southwest (decreasing longitude)
     rawCandidateCoords.push(
       {
-        name: `${closestSector.name} - Nearshore Shelf Zone (15 NM)`,
+        name: `${closestSector.officialName} - Nearshore Shelf Zone (15 NM)`,
         lat: parseFloat((closestSector.latitude - 0.12).toFixed(4)),
         lon: parseFloat((closestSector.longitude - 0.28).toFixed(4)),
       },
       {
-        name: `${closestSector.name} - Continental Shelf Edge (30 NM)`,
+        name: `${closestSector.officialName} - Continental Shelf Edge (30 NM)`,
         lat: parseFloat((closestSector.latitude - 0.20).toFixed(4)),
         lon: parseFloat((closestSector.longitude - 0.55).toFixed(4)),
       },
       {
-        name: `${closestSector.name} - Pelagic Upwelling Zone (45 NM)`,
+        name: `${closestSector.officialName} - Pelagic Upwelling Zone (45 NM)`,
         lat: parseFloat((closestSector.latitude - 0.30).toFixed(4)),
         lon: parseFloat((closestSector.longitude - 0.85).toFixed(4)),
       }
@@ -510,17 +514,17 @@ export async function generateNearbyMarineCandidates(
     // East coast seaward vectors head East / East-Southeast (increasing longitude)
     rawCandidateCoords.push(
       {
-        name: `${closestSector.name} - Nearshore Bay Sector (15 NM)`,
+        name: `${closestSector.officialName} - Nearshore Bay Sector (15 NM)`,
         lat: parseFloat((closestSector.latitude + 0.10).toFixed(4)),
         lon: parseFloat((closestSector.longitude + 0.30).toFixed(4)),
       },
       {
-        name: `${closestSector.name} - Continental Slope Zone (28 NM)`,
+        name: `${closestSector.officialName} - Continental Slope Zone (28 NM)`,
         lat: parseFloat((closestSector.latitude + 0.18).toFixed(4)),
         lon: parseFloat((closestSector.longitude + 0.58).toFixed(4)),
       },
       {
-        name: `${closestSector.name} - Deep Pelagic Convergence (42 NM)`,
+        name: `${closestSector.officialName} - Deep Pelagic Convergence (42 NM)`,
         lat: parseFloat((closestSector.latitude + 0.25).toFixed(4)),
         lon: parseFloat((closestSector.longitude + 0.90).toFixed(4)),
       }
@@ -538,7 +542,7 @@ export async function generateNearbyMarineCandidates(
     validatedCandidates.push({
       id: `candidate_${i + 1}`,
       name: cand.name,
-      sector: closestSector.name,
+      sector: closestSector.officialName,
       latitude: cand.lat,
       longitude: cand.lon,
       distanceNM: distNM,

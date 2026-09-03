@@ -25,9 +25,16 @@ export interface MapMarker {
 
 export interface MapPolygon {
   name: string;
-  type: "imbl" | "mpa" | "hazard" | "safe";
+  type: "imbl" | "mpa" | "hazard" | "safe" | "legal_zone";
+  category?: string;
   coordinates: Array<{ lat: number; lon: number }>;
   color?: string;
+  provenance?: {
+    sourceName?: string;
+    sourceDocument?: string;
+    verificationStatus?: string;
+    canTriggerAutonomousBoundaryIncident?: boolean;
+  };
 }
 
 export interface MapViewProps {
@@ -275,9 +282,10 @@ export function MapView(props: MapViewProps) {
               <div style="font-family: sans-serif; font-size: 12px; color: #1e293b;">
                 <strong style="color: ${polyColor};">${poly.name}</strong><br/>
                 <span style="font-size: 11px; text-transform: uppercase; font-weight: 600;">
-                  Classification: ${poly.type === "imbl" ? "International Maritime Boundary (IMBL)" : poly.type === "mpa" ? "Marine Protected Area / Sanctuary" : "Restricted Zone"}
+                  Classification: ${poly.category || (poly.type === "imbl" ? "International Maritime Boundary" : poly.type === "mpa" ? "Marine Protected Area / Sanctuary" : "Restricted Zone")}
                 </span><br/>
-                <span style="font-size: 10px; color: #64748b;">Statutory Indian Maritime Jurisdiction</span>
+                ${poly.provenance?.sourceDocument ? `<span style="font-size: 10px; color: #64748b;">Source: ${poly.provenance.sourceDocument}</span><br/>` : `<span style="font-size: 10px; color: #64748b;">Statutory Maritime Delimitation</span><br/>`}
+                ${poly.provenance?.verificationStatus ? `<span style="font-size: 10px; font-weight: bold; color: ${poly.provenance.canTriggerAutonomousBoundaryIncident ? '#16a34a' : '#ea580c'};">Status: ${poly.provenance.verificationStatus}</span>` : ""}
               </div>
             `);
 

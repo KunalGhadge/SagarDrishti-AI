@@ -91,6 +91,7 @@ export const initialIncidentWorkflow: AutonomousIncidentWorkflow = {
   weatherSummary: "",
   detectedAt: "",
   timeline: [],
+  provenance: null,
 };
 
 const initialState: AppState = {

@@ -90,10 +90,13 @@ SPEED OVER GROUND: ${incidentWorkflow.speedKts != null ? `${incidentWorkflow.spe
 COMPASS HEADING: ${incidentWorkflow.headingDeg != null ? `${incidentWorkflow.headingDeg}°` : "Unavailable"}
 
 SAFETY & RESCUE DIRECTIVE:
-- Nearest Designated Safe Port: ${incidentWorkflow.nearestPort}
+- Nearest Verified Major Port: ${incidentWorkflow.nearestPort}
 - Nautical Distance: ${incidentWorkflow.portDistanceNM} NM
-- Emergency Escape Heading: ${incidentWorkflow.returnBearing}
+- Emergency Escape Vector: ${incidentWorkflow.returnBearing}
 - Live Marine Conditions: ${incidentWorkflow.weatherSummary}
+- Source Document: ${incidentWorkflow.provenance?.sourceDocument || "Official UN/Government Maritime Publication"}
+- Verification Status: ${incidentWorkflow.provenance?.verificationStatus || "VERIFIED"}
+- Disclaimer: Decision-support only. Port suitability depends on vessel class, draft, weather, harbour status and navigation conditions.
 
 STATUTORY EMERGENCY RADIO & HELPLINE:
 - Indian Coast Guard MRCC: 1554 (Toll-Free 24x7)

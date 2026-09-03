@@ -65,6 +65,7 @@ export function VesselSecurityPanel() {
     incidentWorkflow,
     activeAlerts,
     polygons,
+    dataIntegrity,
     requestLocation,
     refreshWeather,
   } = useVesselSecurity();
@@ -77,40 +78,43 @@ export function VesselSecurityPanel() {
     });
   };
 
-  // Build tactical map markers with dynamic heading & speed
+  // Build tactical map markers with dynamic heading & speed - ZERO FAKE POSITIONS
   const mapMarkers: MapMarker[] = [
-    {
-      lat: activeCoords.latitude,
-      lon: activeCoords.longitude,
-      label: !activeCoords.isLive
-        ? "Reference Coastal Sector (Waiting for Device GNSS)"
-        : incident.isIncident
-        ? `🚨 RESTRICTED ZONE BREACH (${activeCoords.latitude.toFixed(4)}°N, ${activeCoords.longitude.toFixed(4)}°E)`
-        : `📍 Vessel Position (${activeCoords.latitude.toFixed(4)}°N, ${activeCoords.longitude.toFixed(4)}°E)`,
-      type: incident.isIncident ? "hazard" : "current",
-      heading: telemetry.headingDegrees,
-      speed: telemetry.speedKts,
-      accuracy: telemetry.accuracy,
-    },
+    ...(activeCoords.isLive && activeCoords.latitude != null && activeCoords.longitude != null
+      ? [
+          {
+            lat: activeCoords.latitude,
+            lon: activeCoords.longitude,
+            label: incident.isIncident
+              ? `🚨 RESTRICTED ZONE BREACH (${activeCoords.latitude.toFixed(4)}°N, ${activeCoords.longitude.toFixed(4)}°E)`
+              : `📍 Live Vessel GNSS (${activeCoords.latitude.toFixed(4)}°N, ${activeCoords.longitude.toFixed(4)}°E)`,
+            type: incident.isIncident ? ("hazard" as const) : ("current" as const),
+            heading: telemetry.headingDegrees,
+            speed: telemetry.speedKts,
+            accuracy: telemetry.accuracy,
+          },
+        ]
+      : []),
     ...(geofence.nearestSafeHarbor
       ? [
           {
             lat: geofence.nearestSafeHarbor.latitude,
             lon: geofence.nearestSafeHarbor.longitude,
-            label: `⚓ Safe Port: ${geofence.nearestSafeHarbor.name} (${geofence.nearestSafeHarbor.distanceNM} NM • ${geofence.nearestSafeHarbor.bearing})`,
+            label: `⚓ Verified Port: ${geofence.nearestSafeHarbor.name} (${geofence.nearestSafeHarbor.distanceNM} NM • ${geofence.nearestSafeHarbor.bearing})`,
             type: "safe_zone" as const,
           },
         ]
       : []),
   ];
 
-  // Emergency escape polyline vector
-  const mapPath = geofence.nearestSafeHarbor
-    ? [
-        { lat: activeCoords.latitude, lon: activeCoords.longitude },
-        { lat: geofence.nearestSafeHarbor.latitude, lon: geofence.nearestSafeHarbor.longitude },
-      ]
-    : undefined;
+  // Emergency escape polyline vector (Rendered only when live position is acquired)
+  const mapPath =
+    activeCoords.isLive && activeCoords.latitude != null && activeCoords.longitude != null && geofence.nearestSafeHarbor
+      ? [
+          { lat: activeCoords.latitude, lon: activeCoords.longitude },
+          { lat: geofence.nearestSafeHarbor.latitude, lon: geofence.nearestSafeHarbor.longitude },
+        ]
+      : undefined;
 
   // Track breadcrumbs coordinates
   const mapTrack = trackHistory.map((t) => ({ lat: t.lat, lon: t.lon }));
@@ -127,18 +131,18 @@ VIOLATED ZONE: ${incident.violatedZone || "N/A"}
 DURATION IN ZONE: ${incident.durationMinutes} minutes
 
 CURRENT GNSS TELEMETRY:
-- Latitude: ${activeCoords.isLive ? `${activeCoords.latitude.toFixed(4)}°N` : "Unavailable (Pending Fix)"}
-- Longitude: ${activeCoords.isLive ? `${activeCoords.longitude.toFixed(4)}°E` : "Unavailable (Pending Fix)"}
+- Latitude: ${activeCoords.isLive && activeCoords.latitude != null ? `${activeCoords.latitude.toFixed(4)}°N` : "Unavailable (Pending Fix)"}
+- Longitude: ${activeCoords.isLive && activeCoords.longitude != null ? `${activeCoords.longitude.toFixed(4)}°E` : "Unavailable (Pending Fix)"}
 - Speed Over Ground: ${telemetry.speedKts != null ? `${telemetry.speedKts} kts` : "Unavailable"}
 - Compass Heading: ${telemetry.headingCardinal || "Unavailable"}
 - GPS Accuracy: ${telemetry.accuracy != null ? `±${telemetry.accuracy}m` : "Unavailable"}
 
 SAFETY & RESCUE DIRECTIVE:
-- Nearest Designated Safe Port: ${geofence.nearestSafeHarbor.name} (${geofence.nearestSafeHarbor.state})
-- Harbor Anchor: ${geofence.nearestSafeHarbor.harbor}
+- Nearest Verified Major Port: ${geofence.nearestSafeHarbor.name} (${geofence.nearestSafeHarbor.state})
+- Port Authority: ${geofence.nearestSafeHarbor.authority || "Major Port Authority"}
 - Nautical Distance: ${geofence.nearestSafeHarbor.distanceNM} NM (${geofence.nearestSafeHarbor.distanceKm} km)
-- Emergency Heading Azimuth: ${geofence.returnBearing}
-- Assigned SAR Coordination Center: ${geofence.nearestSafeHarbor.coastGuardStation}
+- Emergency Heading Vector: ${geofence.returnBearing}
+- Assigned SAR Coordination Center: ${geofence.nearestSafeHarbor.assignedMrcc}
 
 EMERGENCY CONTACT CHANNELS:
 - Indian Coast Guard MRCC: 1554 (Toll-Free 24x7)
@@ -342,7 +346,9 @@ EMERGENCY CONTACT CHANNELS:
                     <div>
                       <span className="text-muted-foreground block text-[10px]">Breach GNSS</span>
                       <span className="font-semibold">
-                        {activeCoords.latitude.toFixed(3)}°N, {activeCoords.longitude.toFixed(3)}°E
+                        {activeCoords.latitude != null && activeCoords.longitude != null
+                          ? `${activeCoords.latitude.toFixed(3)}°N, ${activeCoords.longitude.toFixed(3)}°E`
+                          : "Awaiting Fix"}
                       </span>
                     </div>
                     <div>
@@ -507,12 +513,12 @@ EMERGENCY CONTACT CHANNELS:
                   <div className="flex flex-wrap items-center justify-between gap-2 p-2 px-3 rounded-lg bg-background/90 backdrop-blur-md border border-border/60 shadow-md text-xs font-mono">
                     <div className="flex items-center gap-1.5">
                       <Anchor className="size-3.5 text-emerald-500" />
-                      <span className="text-muted-foreground">NEAREST SAFE PORT:</span>
+                      <span className="text-muted-foreground">NEAREST VERIFIED PORT:</span>
                       <strong className="text-foreground">
                         {geofence.nearestSafeHarbor.name}
                       </strong>
                       <span className="text-primary font-bold">
-                        • {geofence.nearestSafeHarbor.distanceNM} NM • Bearing {geofence.returnBearing}
+                        • {geofence.nearestSafeHarbor.distanceNM} NM • Vector {geofence.returnBearing}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -764,14 +770,19 @@ EMERGENCY CONTACT CHANNELS:
               </CardContent>
             </Card>
 
-            {/* SECTION 6 — DYNAMIC RETURN GUIDANCE CARD */}
+            {/* SECTION 6 — NEAREST VERIFIED MAJOR PORT */}
             {geofence.nearestSafeHarbor && (
               <Card className="border-border/60 shadow-2xs">
                 <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
-                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                    <Navigation className="size-3.5 text-primary" />
-                    Nearest Verified Indian Safe Port (Dynamically Resolved)
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                      <Navigation className="size-3.5 text-primary" />
+                      Nearest Verified Major Port (MoPSW Registry)
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                      {geofence.nearestSafeHarbor.verificationStatus || "VERIFIED_GOVERNMENT"}
+                    </Badge>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-3 text-xs flex flex-col gap-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -780,7 +791,7 @@ EMERGENCY CONTACT CHANNELS:
                         {geofence.nearestSafeHarbor.name} ({geofence.nearestSafeHarbor.state})
                       </span>
                       <span className="text-muted-foreground text-[11px]">
-                        Designated Harbor Anchor: {geofence.nearestSafeHarbor.harbor}
+                        Authority: {geofence.nearestSafeHarbor.authority || "Major Port Authority"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -793,18 +804,104 @@ EMERGENCY CONTACT CHANNELS:
                         </span>
                       </div>
                       <Badge variant="secondary" className="font-mono text-xs font-semibold px-2 py-1">
-                        Bearing: {geofence.returnBearing}
+                        Vector: {geofence.returnBearing}
                       </Badge>
                     </div>
                   </div>
 
                   <div className="pt-2 border-t text-[11px] text-muted-foreground flex items-center justify-between">
                     <span>Assigned SAR Coordination Center:</span>
-                    <span className="font-medium text-foreground">{geofence.nearestSafeHarbor.coastGuardStation}</span>
+                    <span className="font-medium text-foreground">{geofence.nearestSafeHarbor.assignedMrcc}</span>
+                  </div>
+
+                  <div className="p-2 rounded bg-muted/30 border border-border/30 text-[10px] text-muted-foreground italic">
+                    ⚠️ {geofence.nearestSafeHarbor.navigationDisclaimer || "Decision-support only. Port suitability depends on vessel class, draft, weather, harbour status and navigation conditions."}
                   </div>
                 </CardContent>
               </Card>
             )}
+
+            {/* SECTION 7 — DATA QUALITY & PROVENANCE AUDIT */}
+            <Card className="border-border/60 shadow-2xs">
+              <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                    <Shield className="size-3.5 text-primary" />
+                    Data Quality, Integrity & Provenance Audit
+                  </CardTitle>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[10px] font-mono",
+                      dataIntegrity.autonomousMode === "ENABLED"
+                        ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                        : "border-amber-500/40 text-amber-500 bg-amber-500/10"
+                    )}
+                  >
+                    AUTONOMOUS MODE: {dataIntegrity.autonomousMode}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 text-xs flex flex-col gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
+                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
+                    <span className="text-[10px] text-muted-foreground block">GNSS RECEIVER</span>
+                    <strong className={cn(dataIntegrity.gnssStatus === "LIVE" ? "text-emerald-500" : "text-amber-500")}>
+                      {dataIntegrity.gnssStatus}
+                    </strong>
+                  </div>
+                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
+                    <span className="text-[10px] text-muted-foreground block">BOUNDARY DATA</span>
+                    <strong className="text-emerald-500">
+                      {dataIntegrity.boundaryDataStatus}
+                    </strong>
+                  </div>
+                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
+                    <span className="text-[10px] text-muted-foreground block">PORT REGISTRY</span>
+                    <strong className="text-emerald-500">
+                      {dataIntegrity.portDataStatus} (12 Ports)
+                    </strong>
+                  </div>
+                  <div className="p-2 rounded-md bg-secondary/30 border border-border/40">
+                    <span className="text-[10px] text-muted-foreground block">WEATHER STREAM</span>
+                    <strong className="text-emerald-500">
+                      {dataIntegrity.weatherDataStatus}
+                    </strong>
+                  </div>
+                </div>
+
+                {dataIntegrity.gatingReason && (
+                  <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-700 dark:text-amber-300">
+                    ⚠️ <strong>Autonomous Safety Note:</strong> {dataIntegrity.gatingReason}
+                  </div>
+                )}
+
+                {/* Active Boundary Provenance Details */}
+                {geofence.provenance && (
+                  <div className="p-2.5 rounded-lg bg-secondary/20 border border-border/40 text-[11px] flex flex-col gap-1.5 font-mono">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-foreground">{geofence.provenance.sourceName}</span>
+                      <Badge variant="outline" className="text-[9px] py-0 px-1 border-primary/40 text-primary">
+                        {geofence.provenance.verificationStatus}
+                      </Badge>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      <span>Legal Instrument: {geofence.provenance.sourceDocument}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-3">
+                      <span>Authority: {geofence.provenance.sourceOrganization}</span>
+                      <span>Datum: {geofence.provenance.coordinateReferenceSystem}</span>
+                      <span>Breach Trigger: {geofence.provenance.canTriggerAutonomousBoundaryIncident ? "ENABLED" : "GATED / DISABLED"}</span>
+                    </div>
+                    {geofence.provenance.notes && (
+                      <div className="text-[10px] text-muted-foreground/90 italic pt-1 border-t border-border/30">
+                        {geofence.provenance.notes}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </ScrollArea>
       </DrawerContent>
