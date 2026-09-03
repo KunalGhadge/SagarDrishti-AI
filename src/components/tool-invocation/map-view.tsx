@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Compass } from "lucide-react";
 import { JsonViewPopup } from "../json-view-popup";
+import { cn } from "lib/utils";
 
 export interface MapMarker {
   lat: number;
@@ -33,6 +34,8 @@ export interface MapViewProps {
   polygons?: MapPolygon[];
   path?: Array<{ lat: number; lon: number }>;
   pathLabel?: string;
+  className?: string;
+  mapHeight?: string;
 }
 
 export function MapView(props: MapViewProps) {
@@ -43,6 +46,8 @@ export function MapView(props: MapViewProps) {
     polygons = [],
     path,
     pathLabel = "Direct Bearing (Straight Line)",
+    className,
+    mapHeight,
   } = props;
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -231,6 +236,13 @@ export function MapView(props: MapViewProps) {
       if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
       }
+
+      // Ensure proper sizing when rendered inside drawers or dynamic containers
+      setTimeout(() => {
+        if (isMounted && mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 250);
     }
 
     initLeaflet();
@@ -245,7 +257,7 @@ export function MapView(props: MapViewProps) {
   }, [markers, polygons, path, pathLabel]);
 
   return (
-    <Card className="w-full overflow-hidden border bg-card text-card-foreground shadow-sm">
+    <Card className={cn("w-full overflow-hidden border bg-card text-card-foreground shadow-sm", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2 border-b bg-muted/20">
         <div>
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -268,8 +280,8 @@ export function MapView(props: MapViewProps) {
       <CardContent className="p-0">
         <div
           ref={mapContainerRef}
-          className="h-[320px] w-full bg-muted/40 relative z-0"
-          style={{ minHeight: "320px" }}
+          className="w-full bg-muted/40 relative z-0"
+          style={{ minHeight: mapHeight || "320px", height: mapHeight || "320px" }}
         />
         {/* Clean legend footer */}
         <div className="flex flex-wrap items-center justify-between gap-2 p-2 px-3 bg-background/95 border-t text-[11px] text-muted-foreground">

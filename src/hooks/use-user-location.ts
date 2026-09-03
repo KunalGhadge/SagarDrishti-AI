@@ -7,6 +7,8 @@ export interface UserGeoLocation {
   longitude: number;
   accuracy?: number;
   timestamp?: number;
+  speed?: number | null;
+  heading?: number | null;
 }
 
 const STORAGE_KEY = "sagardrishti_device_gps";
@@ -29,8 +31,18 @@ export function useUserLocation() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isWatching, setIsWatching] = useState(false);
   const [permissionState, setPermissionState] = useState<PermissionState | "unsupported">("prompt");
   const [error, setError] = useState<string | null>(null);
+
+  const updateLocation = useCallback((coords: UserGeoLocation) => {
+    setLocation(coords);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(coords));
+    } catch {
+      // Ignore
+    }
+  }, []);
 
   const requestLocation = useCallback(() => {
     if (typeof window === "undefined" || !navigator.geolocation) {
@@ -44,20 +56,22 @@ export function useUserLocation() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        const speedKts =
+          position.coords.speed != null && position.coords.speed >= 0
+            ? Number((position.coords.speed * 1.94384).toFixed(1))
+            : null;
+
         const coords: UserGeoLocation = {
           latitude: Number(position.coords.latitude.toFixed(4)),
           longitude: Number(position.coords.longitude.toFixed(4)),
           accuracy: Math.round(position.coords.accuracy),
           timestamp: position.timestamp,
+          speed: speedKts,
+          heading: position.coords.heading != null && !isNaN(position.coords.heading) ? Math.round(position.coords.heading) : null,
         };
-        setLocation(coords);
+        updateLocation(coords);
         setIsLoading(false);
         setPermissionState("granted");
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(coords));
-        } catch {
-          // Ignore
-        }
       },
       (err) => {
         setIsLoading(false);
@@ -72,14 +86,55 @@ export function useUserLocation() {
         maximumAge: 60000,
       }
     );
-  }, []);
+  }, [updateLocation]);
 
-  // Check permissions & auto-request on mount
+  // Continuous GPS watch loop
   useEffect(() => {
     if (typeof window === "undefined" || !navigator.geolocation) {
       setPermissionState("unsupported");
       return;
     }
+
+    let watchId: number | null = null;
+
+    const startWatch = () => {
+      try {
+        watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            const speedKts =
+              position.coords.speed != null && position.coords.speed >= 0
+                ? Number((position.coords.speed * 1.94384).toFixed(1))
+                : null;
+
+            const coords: UserGeoLocation = {
+              latitude: Number(position.coords.latitude.toFixed(4)),
+              longitude: Number(position.coords.longitude.toFixed(4)),
+              accuracy: Math.round(position.coords.accuracy),
+              timestamp: position.timestamp,
+              speed: speedKts,
+              heading: position.coords.heading != null && !isNaN(position.coords.heading) ? Math.round(position.coords.heading) : null,
+            };
+            updateLocation(coords);
+            setIsWatching(true);
+            setPermissionState("granted");
+            setError(null);
+          },
+          (err) => {
+            if (err.code === err.PERMISSION_DENIED) {
+              setPermissionState("denied");
+            }
+            setIsWatching(false);
+          },
+          {
+            enableHighAccuracy: true,
+            maximumAge: 5000,
+            timeout: 15000,
+          }
+        );
+      } catch {
+        // Fallback gracefully
+      }
+    };
 
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions
@@ -87,26 +142,33 @@ export function useUserLocation() {
         .then((result) => {
           setPermissionState(result.state);
           if (result.state === "granted") {
-            requestLocation();
+            startWatch();
           }
           result.onchange = () => {
             setPermissionState(result.state);
             if (result.state === "granted") {
-              requestLocation();
+              startWatch();
             }
           };
         })
         .catch(() => {
-          requestLocation();
+          startWatch();
         });
     } else {
-      requestLocation();
+      startWatch();
     }
-  }, [requestLocation]);
+
+    return () => {
+      if (watchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [updateLocation]);
 
   return {
     location,
     isLoading,
+    isWatching,
     permissionState,
     error,
     requestLocation,

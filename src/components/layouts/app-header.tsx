@@ -7,6 +7,8 @@ import {
   ChevronDown,
   Globe,
   PanelLeft,
+  ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "ui/button";
 import { Separator } from "ui/separator";
@@ -22,10 +24,13 @@ import { TextShimmer } from "ui/text-shimmer";
 import { buildReturnUrl } from "lib/admin/navigation-utils";
 import { BackButton } from "@/components/layouts/back-button";
 import { toast } from "sonner";
+import { useVesselSecurity } from "@/hooks/use-vessel-security";
+import { cn } from "lib/utils";
 
 export function AppHeader() {
   const t = useTranslations();
   const [appStoreMutate] = appStore(useShallow((state) => [state.mutate]));
+  const { overallLevel, geofence, weather, incident } = useVesselSecurity();
   const { toggleSidebar, open } = useSidebar();
   const currentPaths = usePathname();
   const searchParams = useSearchParams();
@@ -123,6 +128,68 @@ export function AppHeader() {
                     </span>
                   ))}
                 </div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="secondary"
+                className={cn(
+                  "h-8 px-2.5 flex items-center gap-1.5 font-medium text-xs transition-all duration-200 shadow-2xs",
+                  overallLevel === "CRITICAL"
+                    ? "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/25 animate-pulse"
+                    : overallLevel === "WARNING"
+                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25"
+                    : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/25"
+                )}
+                onClick={() => {
+                  appStoreMutate((state) => ({
+                    securityPanel: {
+                      ...state.securityPanel,
+                      isOpen: !state.securityPanel?.isOpen,
+                    },
+                  }));
+                }}
+              >
+                {overallLevel === "CRITICAL" ? (
+                  <ShieldAlert className="size-3.5 text-red-500" />
+                ) : overallLevel === "WARNING" ? (
+                  <ShieldAlert className="size-3.5 text-amber-500" />
+                ) : (
+                  <ShieldCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                )}
+                <span className="hidden sm:inline font-semibold">
+                  {overallLevel === "CRITICAL"
+                    ? "CRITICAL"
+                    : overallLevel === "WARNING"
+                    ? "WARNING"
+                    : "SAFE"}
+                </span>
+                <span
+                  className={cn(
+                    "size-2 rounded-full",
+                    overallLevel === "CRITICAL"
+                      ? "bg-red-500 animate-ping"
+                      : overallLevel === "WARNING"
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
+                  )}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent align="end" side="bottom">
+              <div className="text-xs flex flex-col gap-0.5">
+                <span className="font-semibold">Vessel Safety & Security Ops</span>
+                <span className="text-muted-foreground">
+                  {incident.isIncident
+                    ? `🚨 ${incident.title}: ${geofence.nearestZoneName}`
+                    : overallLevel === "WARNING"
+                    ? `⚠️ ${geofence.status !== "SAFE" ? geofence.nearestZoneName : weather.summary}`
+                    : "🟢 Normal Navigation: Boundaries and sea state clear"}
+                </span>
               </div>
             </TooltipContent>
           </Tooltip>

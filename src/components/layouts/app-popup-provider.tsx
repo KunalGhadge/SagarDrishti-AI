@@ -49,6 +49,16 @@ const McpCustomizationPopup = dynamic(
   },
 );
 
+const VesselSecurityPanel = dynamic(
+  () =>
+    import("@/components/vessel-security-panel").then(
+      (mod) => mod.VesselSecurityPanel,
+    ),
+  {
+    ssr: false,
+  },
+);
+
 const UserSettingsPopup = dynamic(
   () =>
     import("@/components/user/user-detail/user-settings-popup").then(
@@ -71,6 +81,7 @@ export function AppPopupProvider({
       <UserSettingsPopup userSettingsComponent={userSettingsComponent} />
       <ChatBotVoice />
       <ChatBotTemporary />
+      <VesselSecurityPanel />
       <McpCustomizationPopup />
     </>
   );
