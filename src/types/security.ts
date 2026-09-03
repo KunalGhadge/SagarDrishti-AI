@@ -218,6 +218,32 @@ export interface AutonomousIncidentWorkflow {
   provenance: GeospatialProvenance | null;
 }
 
+export interface OfficialWarningState {
+  source: string;
+  sourceType: "official" | "derived";
+  issuedAt: string | null;
+  fetchedAt: string;
+  area: string;
+  status: "NO_ACTIVE_WARNING" | "ACTIVE_WARNING" | "WARNING_DATA_UNAVAILABLE";
+  verified: boolean;
+  warningLevel: string;
+  bulletinTitle?: string;
+  advisoryText?: string;
+  officialBulletinUrl?: string | null;
+  officialGraphicUrl?: string | null;
+}
+
+export interface SagarDrishtiRiskAssessment {
+  level: "CODE_GREEN" | "CODE_YELLOW" | "CODE_ORANGE" | "CODE_RED";
+  badge: string;
+  riskIndex: number;
+  riskScore: number;
+  reasoning: string;
+  basis: string[];
+  source: string;
+  timestamp: number;
+}
+
 export interface DataQualityIntegrity {
   gnssStatus: "LIVE" | "UNAVAILABLE";
   boundaryDataStatus: "VERIFIED" | "LIMITED";
@@ -238,4 +264,7 @@ export interface OverallSecurityState {
   activeAlerts: ActiveAlert[];
   incidentWorkflow: AutonomousIncidentWorkflow;
   dataIntegrity: DataQualityIntegrity;
+  officialWarning?: OfficialWarningState;
+  riskAssessment?: SagarDrishtiRiskAssessment;
 }
+

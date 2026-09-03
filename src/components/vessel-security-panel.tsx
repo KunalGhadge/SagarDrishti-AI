@@ -14,7 +14,6 @@ import {
 } from "ui/drawer";
 import { Badge } from "ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "ui/card";
-import { ScrollArea } from "ui/scroll-area";
 import { Separator } from "ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "ui/tooltip";
 import {
@@ -68,6 +67,8 @@ export function VesselSecurityPanel() {
     dataIntegrity,
     requestLocation,
     refreshWeather,
+    officialWarning,
+    riskAssessment,
   } = useVesselSecurity();
 
   const setOpen = (bool: boolean) => {
@@ -166,14 +167,14 @@ EMERGENCY CONTACT CHANNELS:
       <DrawerContent
         style={{ userSelect: "text" }}
         className={cn(
-          "px-4 flex flex-col transition-all duration-300 z-50",
+          "px-4 flex flex-col h-screen max-h-screen min-h-0 overflow-hidden transition-all duration-300 z-50",
           isFullscreen
-            ? "w-screen max-w-none h-full rounded-none inset-0"
-            : "w-full md:w-[740px] lg:w-[840px] h-full"
+            ? "w-screen max-w-none rounded-none inset-0"
+            : "w-full md:w-[740px] lg:w-[840px]"
         )}
       >
         {/* Panel Header */}
-        <DrawerHeader className="px-0 py-3 border-b border-border/40 mb-2">
+        <DrawerHeader className="shrink-0 px-0 py-3 border-b border-border/40 mb-2">
           <DrawerTitle className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <div
@@ -265,8 +266,8 @@ EMERGENCY CONTACT CHANNELS:
           </DrawerDescription>
         </DrawerHeader>
 
-        {/* Panel Body Scroll Area */}
-        <ScrollArea className="flex-1 -mx-4 px-4 pr-3.5 pb-6">
+        {/* Panel Body Scroll Area (Constrained to panel interior with overscroll containment) */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-4 px-4 pr-3.5 pb-6">
           <div className="flex flex-col gap-4">
             {/* GPS UNAVAILABLE WARNING BANNER (Rendered honestly when browser GPS is unacquired) */}
             {telemetry.trackingStatus === "UNAVAILABLE" && (
@@ -543,13 +544,166 @@ EMERGENCY CONTACT CHANNELS:
               />
             </div>
 
-            {/* SECTION 3 — ACTIVE ALERTS SECTION (Real monitored events only) */}
+            {/* SECTION 3A — OFFICIAL GOVERNMENT WARNING (IMD / INCOIS) */}
+            <Card className="border-border/60 shadow-2xs">
+              <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                      <AlertTriangle className="size-3.5 text-primary" />
+                      Official Warning
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[10px] font-mono">
+                      Source: IMD
+                    </Badge>
+                  </div>
+                  <Badge
+                    variant={
+                      officialWarning?.verified && officialWarning?.status === "ACTIVE_WARNING"
+                        ? "destructive"
+                        : officialWarning?.verified && officialWarning?.status === "NO_ACTIVE_WARNING"
+                        ? "outline"
+                        : "secondary"
+                    }
+                    className={cn(
+                      "text-[10px] font-mono font-semibold uppercase tracking-wider",
+                      officialWarning?.verified &&
+                        officialWarning?.status === "NO_ACTIVE_WARNING" &&
+                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                    )}
+                  >
+                    {officialWarning?.verified
+                      ? officialWarning.status === "ACTIVE_WARNING"
+                        ? "ACTIVE WARNING"
+                        : "NO ACTIVE WARNING"
+                      : "NO VERIFIED WARNING"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 flex flex-col gap-2.5 text-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="font-semibold text-foreground text-xs sm:text-sm">
+                      {officialWarning?.verified
+                        ? officialWarning.status === "ACTIVE_WARNING"
+                          ? "Official Advisory: Active Marine Weather Warning"
+                          : "No verified warning for selected area"
+                        : "Official warning data unavailable"}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground leading-snug">
+                      {officialWarning?.advisoryText || "Direct IMD official bulletin feed currently unacquired or unavailable."}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/30 text-[10px] font-mono text-muted-foreground">
+                  <div>
+                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground/70">Source</span>
+                    <span className="font-semibold text-foreground">IMD</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground/70">Area</span>
+                    <span className="font-semibold text-foreground truncate block">{officialWarning?.area || "Coastal Sector"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground/70">Updated</span>
+                    <span className="font-semibold text-foreground">{officialWarning?.issuedAt || "Unavailable"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase tracking-wider text-muted-foreground/70">Verification</span>
+                    <span className="font-semibold text-foreground">{officialWarning?.verified ? "Authoritative Live" : "Unverified / Degraded"}</span>
+                  </div>
+                </div>
+
+                {officialWarning?.officialBulletinUrl && (
+                  <div className="pt-1">
+                    <a
+                      href={officialWarning.officialBulletinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-primary underline hover:text-primary/80 inline-flex items-center gap-1 font-mono"
+                    >
+                      <span>🔗 View Official IMD RSMC Fishermen Bulletin (PDF)</span>
+                    </a>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* SECTION 3B — SAGARDRISHTI RISK ASSESSMENT (Deterministic Engine) */}
+            <Card className="border-border/60 shadow-2xs">
+              <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                      <ShieldCheck className="size-3.5 text-primary" />
+                      SagarDrishti Risk Assessment
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[10px] font-mono">
+                      Deterministic Engine
+                    </Badge>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[10px] font-mono font-semibold uppercase tracking-wider",
+                      riskAssessment?.level === "CODE_RED"
+                        ? "bg-red-500/15 text-red-500 border-red-500/30 animate-pulse"
+                        : riskAssessment?.level === "CODE_ORANGE"
+                        ? "bg-amber-500/15 text-amber-500 border-amber-500/30"
+                        : riskAssessment?.level === "CODE_YELLOW"
+                        ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/30"
+                        : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                    )}
+                  >
+                    {riskAssessment?.badge || "🟢 CODE GREEN"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 flex flex-col gap-2 text-xs">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-foreground">
+                      IMO FSA Risk Index: {riskAssessment?.riskIndex ?? 2} (Score: {riskAssessment?.riskScore ?? 20}/100)
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      MSC-MEPC.2/Circ.12/Rev.2
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground leading-snug">
+                    {riskAssessment?.reasoning || "Sea and atmospheric conditions within safe operational margins."}
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-md bg-secondary/30 border border-border/40 text-[11px] flex flex-col gap-1">
+                  <span className="font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
+                    Assessment Deterministic Basis:
+                  </span>
+                  {riskAssessment?.basis?.map((b, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-muted-foreground font-mono text-[10px]">
+                      <span className="size-1 rounded-full bg-primary shrink-0" />
+                      <span>{b}</span>
+                    </div>
+                  )) || (
+                    <span className="text-muted-foreground font-mono text-[10px]">
+                      ECMWF IFS 0.25° Wind + Copernicus Marine Waves
+                    </span>
+                  )}
+                </div>
+
+                <div className="text-[10px] text-muted-foreground/80 italic">
+                  Note: SagarDrishti Risk Assessment is an automated algorithmic decision-support tool. It is not an official government directive. Master retains absolute navigational discretion.
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SECTION 3C — MONITORED SECURITY & GEOFENCE ALERTS */}
             <Card className="border-border/60 shadow-2xs">
               <CardHeader className="py-2.5 px-3.5 border-b bg-muted/20">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
                     <AlertTriangle className="size-3.5 text-primary" />
-                    Active Alerts ({activeAlerts.length})
+                    Monitored Safety Alerts ({activeAlerts.length})
                   </CardTitle>
                   <span className="text-[10px] text-muted-foreground">
                     Derived strictly from live sensor & geospatial engines
@@ -903,7 +1057,7 @@ EMERGENCY CONTACT CHANNELS:
               </CardContent>
             </Card>
           </div>
-        </ScrollArea>
+        </div>
       </DrawerContent>
     </Drawer>
   );

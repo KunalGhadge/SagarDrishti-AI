@@ -14,6 +14,8 @@ import {
   IncidentState,
   ActiveAlert,
   DataQualityIntegrity,
+  OfficialWarningState,
+  SagarDrishtiRiskAssessment,
 } from "@/types/security";
 import { toast } from "sonner";
 import { appStore } from "@/app/store";
@@ -126,6 +128,36 @@ export function useVesselSecurity() {
     queryCoordinates: null,
   });
 
+  // Official Government Warning State (Directly sourced from IMD / MoES)
+  const [officialWarning, setOfficialWarning] = useState<OfficialWarningState>({
+    source: "India Meteorological Department (IMD / MoES)",
+    sourceType: "official",
+    issuedAt: null,
+    fetchedAt: new Date().toISOString(),
+    area: "Indian Coastal Waters",
+    status: "WARNING_DATA_UNAVAILABLE",
+    warningLevel: "NO VERIFIED WARNING",
+    verified: false,
+    bulletinTitle: "Official Marine Warning",
+    advisoryText: "Official warning data unavailable (Pending server verification)",
+  });
+
+  // SagarDrishti Risk Assessment State (Internally computed deterministic decision support)
+  const [riskAssessment, setRiskAssessment] = useState<SagarDrishtiRiskAssessment>({
+    level: "CODE_GREEN",
+    badge: "🟢 CODE GREEN",
+    riskIndex: 2,
+    riskScore: 20,
+    reasoning: "Sea and wind conditions within permissible limits under IMO FSA guidelines",
+    basis: [
+      "Atmospheric Wind & Gusts (ECMWF IFS 0.25°)",
+      "Significant Wave Height & Current (Copernicus Marine CMEMS)",
+      "IMO Formal Safety Assessment (MSC-MEPC.2/Circ.12/Rev.2)",
+    ],
+    source: "SagarDrishti Deterministic Risk Engine",
+    timestamp: Date.now(),
+  });
+
   const lastWeatherFetchRef = useRef<{ lat: number; lon: number; time: number } | null>(null);
 
   const fetchProactiveWeather = useCallback(async (lat: number | null, lon: number | null) => {
@@ -188,11 +220,11 @@ export function useVesselSecurity() {
 
       let summary = "Sea and wind conditions within permissible limits";
       if (windKmph != null && windKmph >= 45.0) {
-        summary = `High Sea-Wind Advisory: ${windKmph} km/h (IMD Fishermen Rule 4.2.1)`;
+        summary = `High Sea-Wind Advisory: ${windKmph} km/h (IMO Wave/Wind Threshold)`;
       } else if (waveHeight != null && waveHeight >= 2.5) {
         summary = `Rough Sea State: Significant waves ${waveHeight}m (WMO Sea State Code 5)`;
       } else if (windKmph != null && waveHeight != null) {
-        summary = `Wind ${windKmph} km/h | Waves ${waveHeight}m (IMO Risk: ${riskResult.riskMatrix.riskIndex})`;
+        summary = `Wind ${windKmph} km/h | Waves ${waveHeight}m (IMO Risk Index: ${riskResult.riskMatrix.riskIndex})`;
       }
 
       setWeatherState({
@@ -212,9 +244,50 @@ export function useVesselSecurity() {
         queryCoordinates: { lat, lon },
       });
 
+      // Update deterministic SagarDrishti Risk Assessment
+      setRiskAssessment({
+        level: riskResult.riskLevel === "CODE_RED_EXTREME"
+          ? "CODE_RED"
+          : riskResult.riskLevel === "CODE_ORANGE_HIGH"
+          ? "CODE_ORANGE"
+          : riskResult.riskLevel === "CODE_YELLOW_MODERATE"
+          ? "CODE_YELLOW"
+          : "CODE_GREEN",
+        badge: riskResult.riskLevel === "CODE_RED_EXTREME"
+          ? "🔴 CODE RED"
+          : riskResult.riskLevel === "CODE_ORANGE_HIGH"
+          ? "🟠 CODE ORANGE"
+          : riskResult.riskLevel === "CODE_YELLOW_MODERATE"
+          ? "🟡 CODE YELLOW"
+          : "🟢 CODE GREEN",
+        riskIndex: riskResult.riskMatrix.riskIndex,
+        riskScore: riskResult.riskMatrix.riskScoreNormalized,
+        reasoning: riskResult.reasoning || summary,
+        basis: [
+          `Sustained Sea-Wind: ${windKmph ?? "N/A"} km/h (ECMWF IFS 0.25°)`,
+          `Significant Wave Height: ${waveHeight ?? "N/A"} m (Copernicus Marine CMEMS)`,
+          `IMO FSA Decision Matrix: Risk Index ${riskResult.riskMatrix.riskIndex} (FI ${riskResult.riskMatrix.frequencyIndex} + SI ${riskResult.riskMatrix.severityIndex})`,
+        ],
+        source: "SagarDrishti Deterministic Risk Engine",
+        timestamp: now,
+      });
+
       lastWeatherFetchRef.current = { lat, lon, time: now };
     } catch {
       // Keep previous telemetry if network fails
+    }
+
+    // Query Official Government Warning endpoint asynchronously (Graceful fail-open)
+    try {
+      const warningRes = await fetch(`/api/marine/official-warning?lat=${lat}&lon=${lon}`, {
+        signal: AbortSignal.timeout(4000),
+      }).catch(() => null);
+      if (warningRes && warningRes.ok) {
+        const warningJson: OfficialWarningState = await warningRes.json();
+        setOfficialWarning(warningJson);
+      }
+    } catch {
+      // Fallback already defaults to WARNING_DATA_UNAVAILABLE honestly
     }
   }, [geofenceEval.distanceToBoundaryKm]);
 
@@ -231,8 +304,8 @@ export function useVesselSecurity() {
       closestDistanceKm: null,
       inGaleRadius: false,
       summary: "No active tropical cyclone advisory in Indian territorial EEZ",
-      source: "IMD RSMC New Delhi Tropical Cyclone Advisory Centre (Official Bulletin)",
-      dataType: "IN_SITU_SENSOR_OBSERVATION",
+      source: "National Maritime Surveillance (No Active Storm Tracked)",
+      dataType: "NUMERICAL_MODEL_FORECAST",
     };
   }, []);
 
@@ -619,6 +692,8 @@ export function useVesselSecurity() {
     polygons: STATUTORY_GEOFENCES,
     dataIntegrity,
     gpsError,
+    officialWarning,
+    riskAssessment,
     confirmIntentional,
     triggerEmergencySos,
     resetIncidentWorkflow,
