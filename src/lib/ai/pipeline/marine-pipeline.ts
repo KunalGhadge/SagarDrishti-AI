@@ -905,8 +905,11 @@ CRITICAL RULES FOR GENERATING YOUR RESPONSE:
    - Line 7: One short CONCLUSION line summarizing the verdict.
      * MANDATORY GEOFENCE WARNING: If geospatialSafety.zoneWarning.value is non-null, you MUST append it to your CONCLUSION line: "CONCLUSION: [verdict]. ${zoneWarningValue ?? ""}".
    - Line 8: One suggested follow-up question drawn ONLY from the 8 core marine categories.
-6. CRITICAL NUMERIC CONSISTENCY: You MUST copy the EXACT numerical values from the <verified_evidence_pack> into your text and table without altering, recalculating, or rounding them. If surfaceWindSpeedKmph is 15.1 km/h in the Evidence Pack, you MUST write exactly 15.1 km/h.
-7. ZERO SPECIES FABRICATION: Do NOT mention or invent any fish species names. There is no verified species data in the Evidence Pack.
+7. ECOLOGICAL & SPECIES KNOWLEDGE PROTOCOL:
+   - Satellite and ocean sensors do not conduct physical fish censuses. Do NOT fabricate live species catches.
+   - When asked about regional fish species, catch types, or fishing methods/gear: reference authoritative fisheries research (ICAR-CMFRI, INCOIS, Department of Fisheries, MPEDA, NIO, FAO).
+   - Distinguish live marine data from researched regional distributions: "Our available marine datasets do not directly provide species-level catch data for this location, so I researched authoritative fisheries sources to identify species commonly reported in this region."
+   - Maintain confident, scientifically honest wording. Never guarantee species presence or catch. Preserve citations.
 `;
 
   return {

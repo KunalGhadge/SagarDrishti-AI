@@ -131,9 +131,11 @@ RULES:
 1. Break down the user request into logical sub-tasks.
 2. Independent tasks (e.g. weather data, ocean physics data, cyclone checks) should have dependsOn: [] so they execute concurrently.
 3. Downstream tasks (e.g. safety risk assessment, final synthesis) must list prerequisite task IDs in dependsOn: [...].
-4. Do NOT create circular dependencies.
-5. Limit total tasks to at most 6.
-6. Return ONLY a valid JSON object matching this schema:
+4. Multi-Question Queries: If the user asks for multiple outputs (e.g., fishing zones, productivity ranking, fish species / catch types, catching methods/gear, map views, route navigation/safety), create dedicated specialist tasks for each aspect without dropping any part.
+5. Fish Species & Catch Methods: Satellite/ocean sensors do not conduct physical fish censuses. When species or gear are requested, assign a research task to the Ocean Analytics specialist or Supervisor using webSearch (Exa) prioritizing authoritative institutional sources (CMFRI, ICAR, INCOIS, Department of Fisheries, MPEDA, NIO, FAO).
+6. Do NOT create circular dependencies.
+7. Limit total tasks to at most 6.
+8. Return ONLY a valid JSON object matching this schema:
 {
   "goal": "...",
   "reasoning": "...",
@@ -204,6 +206,7 @@ Generate the structured JSON execution plan now.`;
 
   const isEmergency = /sos|distress|mayday|sinking|under attack|man overboard|emergency/i.test(queryLower);
   const isPfzQuery = /pfz|fishing zone|catch|tuna|productivity|chlorophyll|thermal front/i.test(queryLower);
+  const isSpeciesOrGearQuery = /species|fish type|what fish|which fish|catch type|gear|how to fish|how to catch|fishing method|net type/i.test(queryLower);
   const isWeatherOnly = /weather|wind|rain|squall|barometer|temperature|humidity/i.test(queryLower) && !/wave|swell|tide/i.test(queryLower);
   const isOceanOnly = /wave|swell|sea state|current|sst|ocean/i.test(queryLower) && !/wind|cyclone/i.test(queryLower);
 
@@ -261,12 +264,27 @@ Generate the structured JSON execution plan now.`;
       parameters: { location: context?.location, coordinates: context?.coordinates },
     });
 
+    if (isSpeciesOrGearQuery) {
+      tasks.push({
+        id: "fisheries_species_research_task",
+        agentId: oceanAgent.id,
+        agentName: oceanAgent.name,
+        objective: `Research authoritative historical fisheries catch data and species distribution (CMFRI, ICAR, INCOIS, MPEDA) for ${context?.location || "target coastal sector"} and identify recommended fishing methods/gear. Note that real-time sensor censuses do not exist and species presence is not guaranteed.`,
+        dependsOn: ["ocean_bio_optics_task"],
+        parameters: { location: context?.location, coordinates: context?.coordinates },
+      });
+    }
+
+    const presDepends = isSpeciesOrGearQuery
+      ? ["safety_fsa_task", "fisheries_species_research_task"]
+      : ["safety_fsa_task"];
+
     tasks.push({
       id: "presentation_synthesis_task",
       agentId: presAgent.id,
       agentName: presAgent.name,
-      objective: "Synthesize PFZ coordinates, bearing, distance in NM, and interactive navigation map for fishermen",
-      dependsOn: ["safety_fsa_task"],
+      objective: "Synthesize PFZ coordinates, bearing, distance in NM, researched regional fisheries species, and interactive navigation map for fishermen",
+      dependsOn: presDepends,
       parameters: { location: context?.location, coordinates: context?.coordinates },
     });
   } else if (isWeatherOnly) {
@@ -343,12 +361,27 @@ Generate the structured JSON execution plan now.`;
       parameters: { location: context?.location, coordinates: context?.coordinates },
     });
 
+    if (isSpeciesOrGearQuery) {
+      tasks.push({
+        id: "fisheries_species_research_task",
+        agentId: oceanAgent.id,
+        agentName: oceanAgent.name,
+        objective: `Research authoritative historical fisheries catch data and species distribution (CMFRI, ICAR, INCOIS, MPEDA) for ${context?.location || "target coastal sector"} and identify recommended fishing methods/gear. Note that real-time sensor censuses do not exist and species presence is not guaranteed.`,
+        dependsOn: ["ocean_state"],
+        parameters: { location: context?.location, coordinates: context?.coordinates },
+      });
+    }
+
+    const presDepends = isSpeciesOrGearQuery
+      ? ["geospatial_safety", "fisheries_species_research_task"]
+      : ["geospatial_safety"];
+
     tasks.push({
       id: "presentation_synthesis",
       agentId: presAgent.id,
       agentName: presAgent.name,
-      objective: "Synthesize operational venture verdict (CODE GREEN/YELLOW/RED), small craft advisory, and parameter audit table",
-      dependsOn: ["geospatial_safety"],
+      objective: "Synthesize operational venture verdict (CODE GREEN/YELLOW/RED), small craft advisory, researched fisheries context, and parameter audit table",
+      dependsOn: presDepends,
       parameters: { location: context?.location, coordinates: context?.coordinates },
     });
   }

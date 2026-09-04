@@ -18,6 +18,23 @@ export function evaluateExecutionResults(
     };
   }
 
+  // Check for knowledge gap in multi-question queries (e.g. fish species or catching methods asked but not addressed)
+  const queryLower = (context.userQuery || "").toLowerCase();
+  const isSpeciesOrGearQuery = /species|fish type|what fish|which fish|catch type|gear|how to fish|how to catch|fishing method|net type/i.test(queryLower);
+  const hasFisheriesEvidence = latestResults.some((r) =>
+    r.taskId.includes("species") ||
+    r.taskId.includes("fisheries") ||
+    (typeof r.findings === "string" && /cmfri|icar|incois|species|pelagic|demersal|catch/i.test(r.findings))
+  );
+
+  if (isSpeciesOrGearQuery && !hasFisheriesEvidence && context.round === 1) {
+    return {
+      isSufficient: false,
+      reason: "User query requested fish species/fishing method context not covered in primary oceanographic telemetry. Triggering authoritative fisheries knowledge research fallback.",
+      recommendedDeltaAction: "fisheries_knowledge_fallback",
+    };
+  }
+
   // Count completed vs failed/unavailable
   const totalTasks = latestResults.length;
   const completedTasks = latestResults.filter((r) => r.status === "completed");

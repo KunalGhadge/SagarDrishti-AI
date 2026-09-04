@@ -30,6 +30,54 @@ function getCardinalDirection(deg: number | null): string {
   return `${deg}° (${cardinals[idx]})`;
 }
 
+export interface DemoCoordinates {
+  latitude: number;
+  longitude: number;
+  speed?: number | null;
+  heading?: number | null;
+  name?: string;
+  presetKey?: "safe" | "caution" | "restricted" | "outsideBoundary" | "manual";
+}
+
+export const DEMO_PRESET_COORDINATES = {
+  safe: {
+    key: "safe" as const,
+    name: "Safe Water (Ratnagiri Offshore)",
+    latitude: 17.0000,
+    longitude: 72.5000,
+    speed: 9.2,
+    heading: 260,
+    description: "Open Arabian Sea navigable waters (143 km from boundaries/MPAs — SAFE)",
+  },
+  caution: {
+    key: "caution" as const,
+    name: "Orange / Caution Zone (Gulf of Kutch Buffer)",
+    latitude: 22.2000,
+    longitude: 69.1000,
+    speed: 6.8,
+    heading: 235,
+    description: "27.4 km from Marine National Park (SYSTEM_SAFETY_BUFFER_APPROACHING)",
+  },
+  restricted: {
+    key: "restricted" as const,
+    name: "Red / Restricted Zone (Malvan Marine Sanctuary MPA)",
+    latitude: 16.0600,
+    longitude: 73.4500,
+    speed: 4.5,
+    heading: 180,
+    description: "Inside statutory Marine Protected Area (MPA BREACH)",
+  },
+  outsideBoundary: {
+    key: "outsideBoundary" as const,
+    name: "Outside Maritime Boundary (Cross Indo-Sri Lanka IMBL)",
+    latitude: 9.5000,
+    longitude: 80.0000,
+    speed: 11.0,
+    heading: 85,
+    description: "Crossed bilateral IMBL line (IMBL BREACH — autonomous SOLAS trigger)",
+  },
+} as const;
+
 export function useVesselSecurity() {
   const { location, isWatching, requestLocation, error: gpsError } = useUserLocation();
 
@@ -40,8 +88,55 @@ export function useVesselSecurity() {
   // In-memory track history (stores only real observed positions)
   const trackHistoryRef = useRef<Array<{ timestamp: number; lat: number; lon: number; speed: number | null; heading: number | null }>>([]);
 
-  // Live active coordinates - ZERO FABRICATED FALLBACK
+  // Demo / Simulation Mode State
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+  const [demoCoords, setDemoCoords] = useState<DemoCoordinates | null>(null);
+
+  const resetToActualGps = useCallback(() => {
+    setIsDemoMode(false);
+    setDemoCoords(null);
+  }, []);
+
+  const enableDemoWithPreset = useCallback((presetKey: keyof typeof DEMO_PRESET_COORDINATES) => {
+    const preset = DEMO_PRESET_COORDINATES[presetKey];
+    setIsDemoMode(true);
+    setDemoCoords({
+      latitude: preset.latitude,
+      longitude: preset.longitude,
+      speed: preset.speed,
+      heading: preset.heading,
+      name: preset.name,
+      presetKey,
+    });
+  }, []);
+
+  const setManualDemoCoords = useCallback((coords: { latitude: number; longitude: number; speed?: number | null; heading?: number | null }) => {
+    setIsDemoMode(true);
+    setDemoCoords((prev) => ({
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      speed: coords.speed ?? prev?.speed ?? 7.5,
+      heading: coords.heading ?? prev?.heading ?? 240,
+      name: "Manual Position",
+      presetKey: "manual",
+    }));
+  }, []);
+
+  // Live active coordinates - Intercepted cleanly at input boundary when Demo Mode is active
   const activeCoords = useMemo(() => {
+    if (isDemoMode && demoCoords && demoCoords.latitude != null && demoCoords.longitude != null) {
+      return {
+        latitude: demoCoords.latitude,
+        longitude: demoCoords.longitude,
+        speed: demoCoords.speed ?? 8.0,
+        heading: demoCoords.heading ?? 240,
+        accuracy: 5,
+        timestamp: Date.now(),
+        isLive: true,
+        isSimulated: true,
+      };
+    }
+
     if (location?.latitude && location?.longitude) {
       return {
         latitude: location.latitude,
@@ -51,6 +146,7 @@ export function useVesselSecurity() {
         accuracy: location.accuracy ?? null,
         timestamp: location.timestamp ?? Date.now(),
         isLive: true,
+        isSimulated: false,
       };
     }
     // Strictly honest: when GNSS is unacquired, coordinates are NULL (never fabricated)
@@ -62,8 +158,9 @@ export function useVesselSecurity() {
       accuracy: null,
       timestamp: null,
       isLive: false,
+      isSimulated: false,
     };
-  }, [location]);
+  }, [location, isDemoMode, demoCoords]);
 
   // Update track history when live GPS position changes
   useEffect(() => {
@@ -674,9 +771,13 @@ export function useVesselSecurity() {
     headingDegrees: activeCoords.isLive ? activeCoords.heading : null,
     headingCardinal: activeCoords.isLive && activeCoords.heading != null ? getCardinalDirection(activeCoords.heading) : "Unavailable",
     timestamp: activeCoords.isLive ? activeCoords.timestamp : null,
-    trackingStatus: activeCoords.isLive ? (isWatching ? "LIVE_GNSS" : "CACHED_POSITION") : "UNAVAILABLE",
-    isSimulated: false,
-  }), [activeCoords, isWatching]);
+    trackingStatus: isDemoMode
+      ? "SIMULATED_DEMO"
+      : activeCoords.isLive
+      ? (isWatching ? "LIVE_GNSS" : "CACHED_POSITION")
+      : "UNAVAILABLE",
+    isSimulated: isDemoMode,
+  }), [activeCoords, isWatching, isDemoMode]);
 
   return {
     overallLevel,
@@ -699,5 +800,13 @@ export function useVesselSecurity() {
     resetIncidentWorkflow,
     requestLocation,
     refreshWeather: () => fetchProactiveWeather(activeCoords.latitude, activeCoords.longitude),
+    // Demo Mode Interface
+    isDemoMode,
+    demoCoords,
+    setIsDemoMode,
+    enableDemoWithPreset,
+    setManualDemoCoords,
+    resetToActualGps,
+    presets: DEMO_PRESET_COORDINATES,
   };
 }

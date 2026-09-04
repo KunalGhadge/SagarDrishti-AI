@@ -54,7 +54,25 @@ export function synthesizeOrchestrationResponse(
     sections.push(`| Distance to IMBL Border | ${primaryEvidence.geospatialSafety?.distanceToImblKm?.value} km | ${primaryEvidence.geospatialSafety?.distanceToImblKm?.status} | Official Maritime Boundary Database |`);
   }
 
-  // 4. Missing Information / Zero-Fabrication Disclaimer
+  // 4. Regional Fisheries & Species Distribution (Authoritative Research Fallback)
+  const fisheriesResult = completedResults.find(
+    (r) =>
+      r.taskId.includes("species") ||
+      r.taskId.includes("fisheries") ||
+      (typeof r.findings === "string" && /cmfri|icar|incois|species|pelagic|demersal|trawl|gillnet/i.test(r.findings))
+  );
+
+  if (fisheriesResult) {
+    sections.push(`\n#### 🐟 Regional Fisheries & Species Distribution (Authoritative Research):`);
+    sections.push(`> *"Our available marine datasets do not directly provide species-level catch data for this location, so I researched authoritative fisheries sources to identify species commonly reported in this region."*\n`);
+    sections.push(`${fisheriesResult.findings}`);
+    if (fisheriesResult.sources && fisheriesResult.sources.length > 0) {
+      sections.push(`\n**Sources & Authoritative Citations:** ${fisheriesResult.sources.join(", ")}`);
+    }
+    sections.push(`\n*Note: Historical regional catch distributions represent ecological likelihoods based on authoritative fisheries records (ICAR-CMFRI). Species presence is not guaranteed at any specific coordinate.*`);
+  }
+
+  // 5. Missing Information / Zero-Fabrication Disclaimer
   if (missingInformation.length > 0 || unavailableResults.length > 0) {
     sections.push(`\n> [!NOTE]`);
     sections.push(`> **Telemetry Integrity & Provenance Notes:**`);
