@@ -147,6 +147,36 @@ export function resolveNearestVerifiedPort(userLocation: { latitude: number; lon
 }
 
 /**
+ * Return sorted nearest verified major ports from official Ministry of Ports records
+ */
+export function resolveNearbyVerifiedPorts(
+  userLocation: { latitude: number; longitude: number },
+  limit = 3
+): VerifiedPortResult[] {
+  const ports: VerifiedPortResult[] = Object.values(VERIFIED_INDIAN_MAJOR_PORTS).map((p) => {
+    const distNM = calculateDistanceNM(userLocation.latitude, userLocation.longitude, p.latitude, p.longitude);
+    const distKm = parseFloat((distNM * 1.852).toFixed(1));
+    const bearing = calculateCompassBearing(userLocation.latitude, userLocation.longitude, p.latitude, p.longitude);
+    return {
+      name: p.officialName,
+      state: p.state,
+      authority: p.authority,
+      latitude: p.latitude,
+      longitude: p.longitude,
+      distanceNM: distNM,
+      distanceKm: distKm,
+      bearing,
+      assignedMrcc: p.assignedMrcc,
+      verificationStatus: p.verificationStatus,
+      sourceDocument: p.sourceDocument,
+      navigationDisclaimer: "Decision-support only. Port suitability depends on vessel class, draft, weather, harbour status and navigation conditions.",
+    };
+  });
+  ports.sort((a, b) => a.distanceNM - b.distanceNM);
+  return ports.slice(0, limit);
+}
+
+/**
  * Backward-compatible wrapper for resolveSafeHarbor
  */
 export function resolveSafeHarbor(userLocation: { latitude: number; longitude: number }): SafeHarborResult {

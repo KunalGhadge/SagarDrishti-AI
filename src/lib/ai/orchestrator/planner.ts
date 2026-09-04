@@ -3,6 +3,7 @@ import { Agent, AgentSummary } from "app-types/agent";
 import { ExecutionPlan, PlannerTask, SpecialistTaskResult } from "./types";
 import { generateUUID } from "lib/utils";
 import { customModelProvider } from "../models";
+import { generateWithProvider } from "../central-model-router";
 
 export const MAX_TASKS_PER_PLAN = 8;
 export const MAX_PLANNING_ROUNDS = 3;
@@ -112,26 +113,21 @@ export async function generateExecutionPlan(
     model = null;
   }
 
-  // 1. If LLM is available, attempt real Model-Driven Planning
-  if (model && eligibleAgents.length > 0) {
-    try {
-      const agentCatalog = eligibleAgents.map((a) => {
-        const mentions = (a as Agent).instructions?.mentions?.map((m) => m.name).join(", ") || "none";
-        return `- Agent ID: "${a.id}", Name: "${a.name}", Role: "${(a as Agent).instructions?.role || a.name}", Description: "${a.description}", Tools: [${mentions}]`;
-      }).join("\n");
-
-      const plannerSystemPrompt = `You are the Master Maritime Planner Agent in the SagarDrishti-AI multi-agent platform.
+  const plannerSystemPrompt = `You are the Master Maritime Planner Agent in the SagarDrishti-AI multi-agent platform.
 Your job is to decompose the user's maritime/oceanographic query into a Directed Acyclic Graph (DAG) of specialist tasks.
 You must choose ONLY from the available database agents catalog below.
 
 AVAILABLE AGENTS CATALOG:
-${agentCatalog}
+${eligibleAgents.map((a) => {
+  const mentions = (a as Agent).instructions?.mentions?.map((m) => m.name).join(", ") || "none";
+  return `- Agent ID: "${a.id}", Name: "${a.name}", Role: "${(a as Agent).instructions?.role || a.name}", Description: "${a.description}", Tools: [${mentions}]`;
+}).join("\n")}
 
 RULES:
 1. Break down the user request into logical sub-tasks.
 2. Independent tasks (e.g. weather data, ocean physics data, cyclone checks) should have dependsOn: [] so they execute concurrently.
 3. Downstream tasks (e.g. safety risk assessment, final synthesis) must list prerequisite task IDs in dependsOn: [...].
-4. Multi-Question Queries: If the user asks for multiple outputs (e.g., fishing zones, productivity ranking, fish species / catch types, catching methods/gear, map views, route navigation/safety), create dedicated specialist tasks for each aspect without dropping any part.
+4. Multi-Question Queries: If the user asks for multiple outputs (e.g., fishing zones, productivity ranking, fish species / catch types, catching methods/gear, ports, map views, route navigation/safety), create dedicated specialist tasks for each aspect without dropping any part.
 5. Fish Species & Catch Methods: Satellite/ocean sensors do not conduct physical fish censuses. When species or gear are requested, assign a research task to the Ocean Analytics specialist or Supervisor using webSearch (Exa) prioritizing authoritative institutional sources (CMFRI, ICAR, INCOIS, Department of Fisheries, MPEDA, NIO, FAO).
 6. Do NOT create circular dependencies.
 7. Limit total tasks to at most 6.
@@ -150,12 +146,15 @@ RULES:
   ]
 }`;
 
-      const plannerUserPrompt = `USER QUERY: "${userQuery}"
+  const plannerUserPrompt = `USER QUERY: "${userQuery}"
 CONTEXT: Location: ${context?.location || "Not specified"}, Coordinates: ${context?.coordinates ? `${context.coordinates.latitude}°N, ${context.coordinates.longitude}°E` : "Not specified"}
 ${previousResults && previousResults.length > 0 ? `PREVIOUS ROUND FINDINGS:\n${JSON.stringify(previousResults.map(r => ({ task: r.taskId, status: r.status, findings: r.findings })))}` : ""}
 
 Generate the structured JSON execution plan now.`;
 
+  // 1. If LLM is available, attempt real Model-Driven Planning
+  if (model && eligibleAgents.length > 0) {
+    try {
       const response = await generateText({
         model,
         system: plannerSystemPrompt,
@@ -196,7 +195,50 @@ Generate the structured JSON execution plan now.`;
         }
       }
     } catch (llmPlanErr: any) {
-      console.warn(`[PLANNER] LLM planning failed (${llmPlanErr.message}). Using capability graph generator.`);
+      console.warn(`[PLANNER] Primary LLM planning failed (${llmPlanErr.message}). Attempting failover via central model router.`);
+      try {
+        const failover = await generateWithProvider({
+          system: plannerSystemPrompt,
+          prompt: plannerUserPrompt,
+          messages: [{ role: "user", content: plannerUserPrompt }],
+          requireTools: false,
+        });
+
+        const jsonMatch = failover.text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsed.tasks) && parsed.tasks.length > 0) {
+            const validatedTasks: PlannerTask[] = [];
+            for (const rawTask of parsed.tasks) {
+              const matchedAgent = eligibleAgents.find(
+                (a) => a.id === rawTask.agentId || a.name.toLowerCase() === (rawTask.agentName || "").toLowerCase()
+              );
+              if (matchedAgent) {
+                validatedTasks.push({
+                  id: String(rawTask.id),
+                  agentId: matchedAgent.id,
+                  agentName: matchedAgent.name,
+                  objective: String(rawTask.objective || `Execute analysis for ${matchedAgent.name}`),
+                  dependsOn: Array.isArray(rawTask.dependsOn) ? rawTask.dependsOn.map(String) : [],
+                  parameters: { location: context?.location, coordinates: context?.coordinates },
+                });
+              }
+            }
+
+            if (validatedTasks.length > 0 && !detectCircularDependencies(validatedTasks)) {
+              return {
+                planId: `plan_${generateUUID()}`,
+                goal: parsed.goal || `Evaluate maritime intelligence for query: "${userQuery}"`,
+                tasks: validatedTasks.slice(0, MAX_TASKS_PER_PLAN),
+                reasoning: parsed.reasoning || "Generated by LLM Master Planner via failover router.",
+                createdAt: new Date().toISOString(),
+              };
+            }
+          }
+        }
+      } catch (failoverErr: any) {
+        console.warn(`[PLANNER] LLM planning failover failed (${failoverErr.message}). Using capability graph generator.`);
+      }
     }
   }
 
@@ -207,8 +249,10 @@ Generate the structured JSON execution plan now.`;
   const isEmergency = /sos|distress|mayday|sinking|under attack|man overboard|emergency/i.test(queryLower);
   const isPfzQuery = /pfz|fishing zone|catch|tuna|productivity|chlorophyll|thermal front/i.test(queryLower);
   const isSpeciesOrGearQuery = /species|fish type|what fish|which fish|catch type|gear|how to fish|how to catch|fishing method|net type/i.test(queryLower);
-  const isWeatherOnly = /weather|wind|rain|squall|barometer|temperature|humidity/i.test(queryLower) && !/wave|swell|tide/i.test(queryLower);
-  const isOceanOnly = /wave|swell|sea state|current|sst|ocean/i.test(queryLower) && !/wind|cyclone/i.test(queryLower);
+  const isPortQuery = /port|harbor|dock|jetty|haven|anchorage|shelter/i.test(queryLower);
+  const isRouteOrMapQuery = /map|route|heading|bearing|navigation|waypoint|passage|course/i.test(queryLower);
+  const isWeatherOnly = /weather|wind|rain|squall|barometer|temperature|humidity/i.test(queryLower) && !/wave|swell|tide|port|harbor|dock/i.test(queryLower);
+  const isOceanOnly = /wave|swell|sea state|current|sst|ocean/i.test(queryLower) && !/wind|cyclone|port|harbor|dock/i.test(queryLower);
 
   if (isEmergency) {
     const emergencyAgent = findBestMatchingAgent("emergency", eligibleAgents) || eligibleAgents[0];
@@ -231,6 +275,56 @@ Generate the structured JSON execution plan now.`;
       dependsOn: ["emergency_distress_task"],
       parameters: { location: context?.location, coordinates: context?.coordinates },
     });
+  } else if (isPortQuery) {
+    const safetyAgent = findBestMatchingAgent("safety", eligibleAgents) || eligibleAgents[0];
+    const weatherAgent = findBestMatchingAgent("weather", eligibleAgents) || eligibleAgents[0];
+    const oceanAgent = findBestMatchingAgent("ocean", eligibleAgents) || eligibleAgents[0];
+    const presAgent = findBestMatchingAgent("presentation", eligibleAgents) || eligibleAgents[0];
+
+    tasks.push({
+      id: "port_navigation_task",
+      agentId: safetyAgent.id,
+      agentName: safetyAgent.name,
+      objective: "Identify nearest verified major ports from official Ministry of Ports records, compute distance in NM and km, compass bearings, and evaluate harbor navigational limits.",
+      dependsOn: [],
+      parameters: { location: context?.location, coordinates: context?.coordinates },
+    });
+
+    tasks.push({
+      id: "weather_assessment",
+      agentId: weatherAgent.id,
+      agentName: weatherAgent.name,
+      objective: "Assess coastal surface wind speed, gust velocity, and barometric pressure trends along port transit approach.",
+      dependsOn: [],
+      parameters: { location: context?.location, coordinates: context?.coordinates },
+    });
+
+    tasks.push({
+      id: "ocean_state",
+      agentId: oceanAgent.id,
+      agentName: oceanAgent.name,
+      objective: "Assess significant wave height, swell wave direction, and surface current velocities for port entry safety.",
+      dependsOn: [],
+      parameters: { location: context?.location, coordinates: context?.coordinates },
+    });
+
+    tasks.push({
+      id: "geospatial_safety",
+      agentId: safetyAgent.id,
+      agentName: safetyAgent.name,
+      objective: "Execute IMO Formal Safety Assessment risk matrix, determine operational safety verdict (CODE GREEN/YELLOW/RED) for port transit, and check IMBL border distance.",
+      dependsOn: ["port_navigation_task", "weather_assessment", "ocean_state"],
+      parameters: { location: context?.location, coordinates: context?.coordinates },
+    });
+
+    tasks.push({
+      id: "presentation_synthesis",
+      agentId: presAgent.id,
+      agentName: presAgent.name,
+      objective: "Synthesize nearby verified ports, navigational bearings, weather safety verdict, and render tactical port/harbor map.",
+      dependsOn: ["geospatial_safety"],
+      parameters: { location: context?.location, coordinates: context?.coordinates },
+    });
   } else if (isPfzQuery) {
     const oceanAgent = findBestMatchingAgent("ocean", eligibleAgents) || eligibleAgents[0];
     const weatherAgent = findBestMatchingAgent("weather", eligibleAgents) || eligibleAgents[0];
@@ -241,7 +335,7 @@ Generate the structured JSON execution plan now.`;
       id: "ocean_bio_optics_task",
       agentId: oceanAgent.id,
       agentName: oceanAgent.name,
-      objective: "Retrieve Sea Surface Temperature, NOAA Chlorophyll-a, and identify high-gradient thermal front PFZ coordinates",
+      objective: "Retrieve Sea Surface Temperature, NOAA Chlorophyll-a, detect high-gradient thermal fronts (ΔSST ≥ 0.5°C / 5km), and rank potential fishing zones by expected productivity.",
       dependsOn: [],
       parameters: { location: context?.location, coordinates: context?.coordinates },
     });
@@ -259,7 +353,9 @@ Generate the structured JSON execution plan now.`;
       id: "safety_fsa_task",
       agentId: safetyAgent.id,
       agentName: safetyAgent.name,
-      objective: "Calculate IMO Formal Safety Assessment risk index and check distance to International Maritime Boundary Line",
+      objective: isRouteOrMapQuery
+        ? "Calculate IMO Formal Safety Assessment risk index, check distance to International Maritime Boundary Line, and generate safe navigational transit route and compass heading."
+        : "Calculate IMO Formal Safety Assessment risk index and check distance to International Maritime Boundary Line",
       dependsOn: ["ocean_bio_optics_task", "weather_environmental_task"],
       parameters: { location: context?.location, coordinates: context?.coordinates },
     });
@@ -283,7 +379,9 @@ Generate the structured JSON execution plan now.`;
       id: "presentation_synthesis_task",
       agentId: presAgent.id,
       agentName: presAgent.name,
-      objective: "Synthesize PFZ coordinates, bearing, distance in NM, researched regional fisheries species, and interactive navigation map for fishermen",
+      objective: isRouteOrMapQuery
+        ? "Synthesize PFZ coordinates, productivity ranking, bearing, distance in NM, researched regional fisheries species, and render interactive navigation route map for fishermen"
+        : "Synthesize PFZ coordinates, bearing, distance in NM, researched regional fisheries species, and interactive navigation map for fishermen",
       dependsOn: presDepends,
       parameters: { location: context?.location, coordinates: context?.coordinates },
     });

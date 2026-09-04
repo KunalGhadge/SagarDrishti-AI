@@ -4,6 +4,7 @@ import { resolveToolsForAgent } from "../tools/tool-kit";
 import { customModelProvider } from "../models";
 import { safeParseToolArguments } from "../tool-repair";
 import { generateWithProvider } from "../central-model-router";
+import { resolveNearbyVerifiedPorts } from "../engines/marine-geospatial-engine";
 
 export interface SpecialistExecutionInput {
   agent: Agent | AgentSummary | any;
@@ -61,11 +62,33 @@ Always base conclusions strictly on real tool outputs. If a data source is unava
     ? `Target coastal zone / harbor: ${context.location}.`
     : "No explicit location provided. Use device GPS or target coastal harbor if required.";
 
+  let portContextStr = "";
+  if (
+    effectiveCoords &&
+    (task.toLowerCase().includes("port") ||
+      task.toLowerCase().includes("harbor") ||
+      task.toLowerCase().includes("dock") ||
+      task.toLowerCase().includes("safe") ||
+      agentRole.toLowerCase().includes("safety") ||
+      agentRole.toLowerCase().includes("rescue"))
+  ) {
+    const nearbyPorts = resolveNearbyVerifiedPorts(effectiveCoords, 3);
+    portContextStr =
+      `\nOfficial Verified Indian Major Ports (Ministry of Ports, Shipping and Waterways):\n` +
+      nearbyPorts
+        .map(
+          (p, idx) =>
+            `${idx + 1}. ${p.name} (${p.state}) — Distance: ${p.distanceNM} NM (${p.distanceKm} km), Bearing: ${p.bearing}, Authority: ${p.authority}, MRCC: ${p.assignedMrcc}`
+        )
+        .join("\n");
+  }
+
   const fullUserPrompt = `TASK FROM SUPERVISOR / PLANNER:
 "${task}"
 
 CONTEXT:
 ${locationContextStr}
+${portContextStr}
 ${context?.chatHistorySnippet ? `Previous Upstream Findings:\n${context.chatHistorySnippet}` : ""}
 
 Please use your dynamically mounted tools to retrieve necessary data, perform analysis, and synthesize your specialist findings.`;
