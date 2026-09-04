@@ -3,6 +3,7 @@
 import { appStore } from "@/app/store";
 import { cn } from "lib/utils";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "ui/button";
 import {
   Drawer,
@@ -71,12 +72,34 @@ export function VesselSecurityPanel() {
     riskAssessment,
   } = useVesselSecurity();
 
+  const router = useRouter();
+
   const setOpen = (bool: boolean) => {
     appStoreMutate({
       securityPanel: {
         isOpen: bool,
       },
     });
+  };
+
+  const handleSelectDangerScenario = (scenario: {
+    name: string;
+    reason: string;
+    distressMessage: string;
+  }) => {
+    // 1. Close drawer
+    setOpen(false);
+
+    // 2. Queue pending message in appStore
+    appStoreMutate({
+      pendingChatMessage: scenario.distressMessage,
+    });
+
+    toast.error(`🚨 Emergency Demo: ${scenario.name} selected. Opening chat session...`);
+
+    // 3. Navigate to a clean chat session
+    router.push("/");
+    router.refresh();
   };
 
   // Build tactical map markers with dynamic heading & speed - ZERO FAKE POSITIONS
@@ -269,6 +292,113 @@ EMERGENCY CONTACT CHANNELS:
         {/* Panel Body Scroll Area (Constrained to panel interior with overscroll containment) */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-4 px-4 pr-3.5 pb-6">
           <div className="flex flex-col gap-4">
+            {/* DEMO: SIMULATE VESSEL DANGER (JUDGE DEMO MODE) */}
+            <Card className="border-red-500/40 bg-gradient-to-br from-red-500/10 via-background to-background shadow-xs">
+              <CardHeader className="py-2.5 px-3.5 border-b border-border/40">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertOctagon className="size-4 text-red-500 animate-pulse" />
+                    <CardTitle className="text-xs sm:text-sm font-bold text-foreground">
+                      Simulate Vessel Danger (Judge Demo)
+                    </CardTitle>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] font-mono border-red-500/50 text-red-600 dark:text-red-400 bg-red-500/10 uppercase"
+                  >
+                    Autonomous SOS Trigger
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 text-xs flex flex-col gap-2.5">
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  Select a live emergency threat scenario. SagarDrishti AI will open a fresh chat, notify the marine orchestrator, request operator confirmation, and auto-dispatch the Coast Guard MRCC 1554 SAR rescue plan after 10s if unanswered.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono">
+                  <Button
+                    variant="outline"
+                    className="h-auto py-2 px-2.5 flex flex-col items-start text-left border-red-500/35 hover:border-red-500 hover:bg-red-500/10 transition-all"
+                    onClick={() =>
+                      handleSelectDangerScenario({
+                        name: "Crossing Geofence (IMBL)",
+                        reason: "Crossing statutory geofencing boundary (IMBL)",
+                        distressMessage:
+                          "EMERGENCY: I am in danger! Reason: Crossing statutory geofencing boundary (IMBL). My vessel has drifted into the restricted boundary corridor and requires immediate navigational assistance and safe harbor return heading.",
+                      })
+                    }
+                  >
+                    <span className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-1.5 text-xs">
+                      🚨 Crossing Geofence / IMBL
+                    </span>
+                    <span className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5 font-sans">
+                      Vessel crossed territorial boundary line into restricted sector
+                    </span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="h-auto py-2 px-2.5 flex flex-col items-start text-left border-amber-500/35 hover:border-amber-500 hover:bg-amber-500/10 transition-all"
+                    onClick={() =>
+                      handleSelectDangerScenario({
+                        name: "Severe Cyclone & Gale Winds",
+                        reason: "Caught in severe cyclone storm with gale winds > 65 km/h",
+                        distressMessage:
+                          "EMERGENCY: I am in danger! Reason: Caught in severe cyclone storm with gale-force winds exceeding 65 km/h and dangerous high swell. Requesting emergency shelter harbor routing.",
+                      })
+                    }
+                  >
+                    <span className="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 text-xs">
+                      🌀 Cyclone & Gale Winds
+                    </span>
+                    <span className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5 font-sans">
+                      Severe squall & high waves exceeding small-craft safe thresholds
+                    </span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="h-auto py-2 px-2.5 flex flex-col items-start text-left border-rose-500/35 hover:border-rose-500 hover:bg-rose-500/10 transition-all"
+                    onClick={() =>
+                      handleSelectDangerScenario({
+                        name: "Engine Failure & Sinking",
+                        reason: "Catastrophic engine breakdown with rapid water ingress and capsize hazard",
+                        distressMessage:
+                          "EMERGENCY: I am in danger! Reason: Engine failure with rapid hull water ingress and imminent sinking hazard. Requesting urgent Coast Guard MRCC 1554 SAR dispatch.",
+                      })
+                    }
+                  >
+                    <span className="font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5 text-xs">
+                      ⚓ Engine Failure & Sinking
+                    </span>
+                    <span className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5 font-sans">
+                      Propulsion breakdown with water ingress and capsize distress
+                    </span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="h-auto py-2 px-2.5 flex flex-col items-start text-left border-purple-500/35 hover:border-purple-500 hover:bg-purple-500/10 transition-all"
+                    onClick={() =>
+                      handleSelectDangerScenario({
+                        name: "Piracy / Hostile Skiff Threat",
+                        reason: "Hostile armed skiff approaching vessel in offshore corridor",
+                        distressMessage:
+                          "EMERGENCY: I am in danger! Reason: Hostile armed skiff approaching vessel at high speed. Bridge lockdown initiated, requesting emergency Coast Guard intervention.",
+                      })
+                    }
+                  >
+                    <span className="font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-1.5 text-xs">
+                      🔒 Piracy / Armed Threat
+                    </span>
+                    <span className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5 font-sans">
+                      Unidentified hostile craft boarding approach in offshore corridor
+                    </span>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* GPS UNAVAILABLE WARNING BANNER (Rendered honestly when browser GPS is unacquired) */}
             {telemetry.trackingStatus === "UNAVAILABLE" && (
               <Card className="border-amber-500/40 bg-amber-500/10 shadow-2xs">

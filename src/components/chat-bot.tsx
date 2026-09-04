@@ -32,7 +32,7 @@ import { isShortcutEvent, Shortcuts } from "lib/keyboard-shortcuts";
 import { Button } from "ui/button";
 import { deleteThreadAction } from "@/app/api/chat/actions";
 import { useRouter } from "next/navigation";
-import { ArrowDown, Loader, FilePlus } from "lucide-react";
+import { ArrowDown, Loader, FilePlus, AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -108,6 +108,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     threadMentions,
     pendingThreadMention,
     threadImageToolModel,
+    pendingChatMessage,
   ] = appStore(
     useShallow((state) => [
       state.mutate,
@@ -119,6 +120,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
       state.threadMentions,
       state.pendingThreadMention,
       state.threadImageToolModel,
+      state.pendingChatMessage,
     ]),
   );
 
@@ -384,6 +386,87 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     }
   }, [pendingThreadMention, threadId, appStoreMutate]);
 
+  // Auto-send danger scenario message from Vessel Security Panel demo trigger
+  useEffect(() => {
+    if (pendingChatMessage && status === "ready" && !isLoading) {
+      const messageToSend = pendingChatMessage;
+      appStoreMutate({ pendingChatMessage: undefined });
+      sendMessage({ text: messageToSend });
+    }
+  }, [pendingChatMessage, status, isLoading, sendMessage, appStoreMutate]);
+
+  // Emergency 10-second automatic confirmation countdown state
+  const [emergencyCountdown, setEmergencyCountdown] = useState<{
+    messageId: string;
+    secondsLeft: number;
+  } | null>(null);
+  const handledEmergencyMessagesRef = useRef<Set<string>>(new Set());
+
+  // Detect assistant's emergency confirmation prompt
+  useEffect(() => {
+    if (status !== "ready") return;
+    const lastMessage = messages.at(-1);
+    if (!lastMessage || lastMessage.role !== "assistant") {
+      setEmergencyCountdown((prev) => (prev ? null : prev));
+      return;
+    }
+
+    const text = lastMessage.parts
+      .filter((p): p is TextUIPart => p.type === "text")
+      .map((p) => p.text)
+      .join(" ");
+
+    const isEmergencyPrompt =
+      /emergency report.*confirm.*active emergency.*\(yes\/no\)/i.test(text) ||
+      text.includes("reporting an active emergency right now? (yes/no)");
+
+    if (isEmergencyPrompt) {
+      if (!handledEmergencyMessagesRef.current.has(lastMessage.id)) {
+        handledEmergencyMessagesRef.current.add(lastMessage.id);
+        setEmergencyCountdown({
+          messageId: lastMessage.id,
+          secondsLeft: 10,
+        });
+      }
+    } else {
+      setEmergencyCountdown((prev) => (prev ? null : prev));
+    }
+  }, [status, messages]);
+
+  // Run 10-second automatic escalation countdown
+  useEffect(() => {
+    if (!emergencyCountdown) return;
+
+    if (emergencyCountdown.secondsLeft <= 0) {
+      setEmergencyCountdown(null);
+      sendMessage({ text: "yes" });
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setEmergencyCountdown((prev) => {
+        if (!prev) return null;
+        if (prev.secondsLeft <= 1) {
+          sendMessage({ text: "yes" });
+          return null;
+        }
+        return { ...prev, secondsLeft: prev.secondsLeft - 1 };
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [emergencyCountdown, sendMessage]);
+
+  const handleCancelEmergency = useCallback(() => {
+    setEmergencyCountdown(null);
+    sendMessage({ text: "no" });
+  }, [sendMessage]);
+
+  const handleConfirmEmergencyNow = useCallback(() => {
+    setEmergencyCountdown(null);
+    sendMessage({ text: "yes" });
+  }, [sendMessage]);
+
   useEffect(() => {
     if (isInitialThreadEntry)
       containerRef.current?.scrollTo({
@@ -512,6 +595,52 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
               onClick={scrollToBottom}
             />
           </div>
+
+          <AnimatePresence>
+            {emergencyCountdown && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="max-w-3xl mx-auto px-4 sm:px-6 mb-2"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-xs text-amber-950 dark:text-amber-100 shadow-md backdrop-blur-md">
+                  <div className="flex items-center gap-2.5">
+                    <AlertTriangle className="size-4.5 text-amber-500 shrink-0 animate-bounce" />
+                    <div>
+                      <span className="font-bold block sm:inline mr-1 text-amber-600 dark:text-amber-400">
+                        🚨 Autonomous Emergency Protocol:
+                      </span>
+                      <span className="text-muted-foreground dark:text-amber-200/80">
+                        Auto-confirming active emergency in{" "}
+                        <span className="font-mono font-bold text-amber-600 dark:text-amber-300 text-sm px-1.5 py-0.5 rounded bg-amber-500/25 border border-amber-500/40">
+                          {emergencyCountdown.secondsLeft}s
+                        </span>{" "}
+                        unless cancelled...
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs border-amber-500/40 hover:bg-amber-500/15 font-medium"
+                      onClick={handleCancelEmergency}
+                    >
+                      Cancel (No)
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs bg-red-600 hover:bg-red-700 text-white font-semibold shadow-xs"
+                      onClick={handleConfirmEmergencyNow}
+                    >
+                      Confirm Now (Yes)
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <PromptInput
             input={input}

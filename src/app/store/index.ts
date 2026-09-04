@@ -70,6 +70,7 @@ export interface AppState {
     };
   };
   pendingThreadMention?: ChatMention;
+  pendingChatMessage?: string;
 }
 
 export interface AppDispatch {
@@ -139,6 +140,7 @@ const initialState: AppState = {
     },
   },
   pendingThreadMention: undefined,
+  pendingChatMessage: undefined,
 };
 
 export const appStore = create<AppState & AppDispatch>()(
