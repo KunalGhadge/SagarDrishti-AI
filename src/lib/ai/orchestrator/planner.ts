@@ -231,16 +231,6 @@ Generate the structured JSON execution plan now.`;
       dependsOn: ["emergency_distress_task"],
       parameters: { location: context?.location, coordinates: context?.coordinates },
     });
-
-    const presAgent = findBestMatchingAgent("presentation", eligibleAgents) || eligibleAgents[0];
-    tasks.push({
-      id: "presentation_synthesis_task",
-      agentId: presAgent.id,
-      agentName: presAgent.name,
-      objective: "Render tactical distress map (createMapView) with vessel coordinates and safe harbor bearing line, and provide Coast Guard MRCC 1554 rescue channels",
-      dependsOn: ["emergency_geospatial_task"],
-      parameters: { location: context?.location, coordinates: context?.coordinates },
-    });
   } else if (isPfzQuery) {
     const oceanAgent = findBestMatchingAgent("ocean", eligibleAgents) || eligibleAgents[0];
     const weatherAgent = findBestMatchingAgent("weather", eligibleAgents) || eligibleAgents[0];

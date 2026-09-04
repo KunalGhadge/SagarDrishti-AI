@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { appStore } from "@/app/store";
 
 const KeyboardShortcutsPopup = dynamic(
@@ -78,6 +78,7 @@ export function AppPopupProvider({
   userSettingsComponent: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const incidentWorkflow = appStore((state) => state.incidentWorkflow);
   const navigatedBreachIdRef = useRef<string | null>(null);
 
@@ -90,14 +91,11 @@ export function AppPopupProvider({
       navigatedBreachIdRef.current !== incidentWorkflow.incidentId
     ) {
       navigatedBreachIdRef.current = incidentWorkflow.incidentId;
-      // Close side drawer so the emergency HUD is immediately visible
-      appStore.setState({
-        securityPanel: { isOpen: false },
-      });
-      // Navigate to dedicated new incident chat
-      router.push(`/?incident=${incidentWorkflow.incidentId}`);
+      if (pathname !== "/" && !pathname.startsWith("/chat/")) {
+        router.push("/");
+      }
     }
-  }, [incidentWorkflow?.isActive, incidentWorkflow?.stage, incidentWorkflow?.incidentId, router]);
+  }, [incidentWorkflow?.isActive, incidentWorkflow?.stage, incidentWorkflow?.incidentId, pathname, router]);
 
   return (
     <>

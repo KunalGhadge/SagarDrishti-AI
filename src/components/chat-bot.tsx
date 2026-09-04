@@ -32,7 +32,7 @@ import { isShortcutEvent, Shortcuts } from "lib/keyboard-shortcuts";
 import { Button } from "ui/button";
 import { deleteThreadAction } from "@/app/api/chat/actions";
 import { useRouter } from "next/navigation";
-import { ArrowDown, Loader, FilePlus, ShieldAlert } from "lucide-react";
+import { ArrowDown, Loader, FilePlus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -108,7 +108,6 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     threadMentions,
     pendingThreadMention,
     threadImageToolModel,
-    incidentWorkflow,
   ] = appStore(
     useShallow((state) => [
       state.mutate,
@@ -120,12 +119,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
       state.threadMentions,
       state.pendingThreadMention,
       state.threadImageToolModel,
-      state.incidentWorkflow,
     ]),
-  );
-
-  const isIncidentActive = Boolean(
-    incidentWorkflow?.isActive && incidentWorkflow?.stage !== "IDLE"
   );
 
   const generateTitle = useGenerateThreadTitle({
@@ -435,7 +429,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
       {particle}
       <div
         className={cn(
-          emptyMessage && !isIncidentActive && "justify-center pb-24",
+          emptyMessage && "justify-center pb-24",
           "flex flex-col min-w-0 relative h-full z-40",
         )}
       >
@@ -451,8 +445,8 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             </div>
           </div>
         )}
-        <AutonomousIncidentSafetyCard sendMessage={sendMessage} />
-        {emptyMessage && !isIncidentActive ? (
+        <AutonomousIncidentSafetyCard />
+        {emptyMessage ? (
           <ChatGreeting />
         ) : (
           <>
@@ -463,21 +457,6 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
               ref={containerRef}
               onScroll={handleScroll}
             >
-              {emptyMessage && isIncidentActive && (
-                <div className="w-full max-w-3xl mx-auto px-6 py-6 flex flex-col items-center justify-center text-center gap-3 animate-in fade-in duration-500">
-                  <div className="size-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
-                    <ShieldAlert className="size-6 animate-pulse" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-sm sm:text-base font-bold tracking-tight text-foreground">
-                      Emergency Decision-Support Session Active
-                    </h3>
-                    <p className="text-xs text-muted-foreground max-w-md">
-                      Vessel safety perimeter breach logged. Review telemetry above and confirm intent, or initiate emergency Coast Guard SAR rescue.
-                    </p>
-                  </div>
-                </div>
-              )}
               {messages.map((message, index) => {
                 const isLastMessage = messages.length - 1 === index;
                 return (
@@ -535,11 +514,6 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
           </div>
 
           <PromptInput
-            placeholder={
-              isIncidentActive
-                ? "Type response or emergency distress command..."
-                : undefined
-            }
             input={input}
             threadId={threadId}
             sendMessage={sendMessage}
@@ -549,7 +523,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             onFocus={isFirstTime ? undefined : handleFocus}
           />
 
-          {emptyMessage && !isIncidentActive && (
+          {emptyMessage && (
             <ChatStarterPrompts
               onSelect={(q) => sendMessage({ text: q })}
               disabled={isLoading || isPendingToolCall}

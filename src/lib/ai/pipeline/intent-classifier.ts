@@ -126,13 +126,6 @@ export function classifyIntent(query: string): MarineIntentCategory {
   // Step 1: Pre-translate & normalize Indian languages into standard English semantic concepts
   const q = normalizeMultilingualMarineQuery(query);
 
-  // 0. EMERGENCY SOS & SEARCH AND RESCUE (Takes absolute precedence over routine checks)
-  if (
-    /emergency|sos|distress|mayday|sinking|sar rescue|maritime rescue|coast guard rescue|under attack|man overboard|active emergency/i.test(q)
-  ) {
-    return "ALERT_CHECK";
-  }
-
   // 1. GEOFENCE CHECK (IMBL, boundary, MPA, restricted area, sanctuary)
   if (
     /geofence|imbl|boundary|border|katchatheevu|sir creek|restricted|marine protected|mpa|sanctuary|prohibited zone/i.test(q) ||
