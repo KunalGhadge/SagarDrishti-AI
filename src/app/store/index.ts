@@ -166,12 +166,19 @@ export const appStore = create<AppState & AppDispatch>()(
         securityPanel: {
           isOpen: false,
         },
-        incidentWorkflow:
-          state.incidentWorkflow || initialIncidentWorkflow,
         toolPresets: state.toolPresets || initialState.toolPresets,
         voiceChat: {
           ...initialState.voiceChat,
           ...state.voiceChat,
+          isOpen: false,
+        },
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(persistedState as Partial<AppState>),
+        // Incident workflow and security panel open states are transient runtime states and must never persist
+        incidentWorkflow: initialIncidentWorkflow,
+        securityPanel: {
           isOpen: false,
         },
       }),
