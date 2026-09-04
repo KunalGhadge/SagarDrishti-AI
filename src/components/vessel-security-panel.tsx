@@ -39,10 +39,6 @@ import {
   CheckCircle2,
   AlertOctagon,
   Info,
-  FlaskConical,
-  SlidersHorizontal,
-  RotateCcw,
-  HelpCircle,
 } from "lucide-react";
 import { useShallow } from "zustand/shallow";
 import { useVesselSecurity } from "@/hooks/use-vessel-security";
@@ -73,11 +69,6 @@ export function VesselSecurityPanel() {
     refreshWeather,
     officialWarning,
     riskAssessment,
-    isDemoMode,
-    demoCoords,
-    enableDemoWithPreset,
-    setManualDemoCoords,
-    resetToActualGps,
   } = useVesselSecurity();
 
   const setOpen = (bool: boolean) => {
@@ -97,8 +88,6 @@ export function VesselSecurityPanel() {
             lon: activeCoords.longitude,
             label: incident.isIncident
               ? `🚨 RESTRICTED ZONE BREACH (${activeCoords.latitude.toFixed(4)}°N, ${activeCoords.longitude.toFixed(4)}°E)`
-              : isDemoMode
-              ? `📍 Simulated Vessel [DEMO] (${activeCoords.latitude.toFixed(4)}°N, ${activeCoords.longitude.toFixed(4)}°E)`
               : `📍 Live Vessel GNSS (${activeCoords.latitude.toFixed(4)}°N, ${activeCoords.longitude.toFixed(4)}°E)`,
             type: incident.isIncident ? ("hazard" as const) : ("current" as const),
             heading: telemetry.headingDegrees,
@@ -507,203 +496,15 @@ EMERGENCY CONTACT CHANNELS:
               </CardContent>
             </Card>
 
-            {/* DEMO / SIMULATION MODE CONTROL BAR */}
-            <Card
-              className={cn(
-                "border transition-all duration-300 shadow-2xs",
-                isDemoMode
-                  ? "border-sky-500/50 bg-sky-500/10 dark:bg-sky-950/25"
-                  : "border-border/60 bg-muted/20"
-              )}
-            >
-              <CardContent className="p-3 flex flex-col gap-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        "size-7 rounded-md flex items-center justify-center shrink-0 transition-colors",
-                        isDemoMode
-                          ? "bg-sky-500 text-white shadow-xs"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      <FlaskConical className="size-4" />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs sm:text-sm font-bold tracking-tight text-foreground">
-                        VESSEL SECURITY DEMO MODE
-                      </span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground cursor-help p-0.5"
-                            onClick={() => {
-                              toast.info(
-                                "This is a demonstration mode. Vessel coordinates are simulated and do not represent your actual GPS location.",
-                                { duration: 6000 }
-                              );
-                            }}
-                          >
-                            <HelpCircle className="size-3.5 text-sky-500" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs text-xs font-normal">
-                          This is a demonstration mode. Vessel coordinates are simulated and do not represent your actual GPS location.
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    {isDemoMode && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs font-mono border-sky-500 text-sky-600 dark:text-sky-400 bg-sky-500/10 animate-pulse px-2 py-0.5"
-                      >
-                        SIMULATION ACTIVE
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    {isDemoMode ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs font-medium text-rose-600 dark:text-rose-400 border-rose-500/40 hover:bg-rose-500/10 gap-1 px-2.5"
-                        onClick={resetToActualGps}
-                      >
-                        <RotateCcw className="size-3" />
-                        Exit Demo Mode (Reset GPS)
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs font-medium border-sky-500/50 text-sky-600 dark:text-sky-400 hover:bg-sky-500/15 gap-1 px-2.5"
-                        onClick={() => enableDemoWithPreset("safe")}
-                      >
-                        <SlidersHorizontal className="size-3" />
-                        Enable Demo Mode
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Clear Simulation Notice */}
-                {isDemoMode && (
-                  <div className="p-2 rounded bg-sky-500/15 border border-sky-500/30 text-xs text-sky-800 dark:text-sky-200 leading-relaxed font-medium">
-                    ℹ️ <strong>Demonstration Mode:</strong> Vessel coordinates are simulated and do not represent your actual GPS location.
-                  </div>
-                )}
-
-                {/* Preset Controls */}
-                {isDemoMode && (
-                  <div className="flex flex-col gap-2 pt-1 border-t border-border/40">
-                    <div className="flex items-center justify-between flex-wrap gap-1 text-xs text-muted-foreground">
-                      <span className="font-mono text-xs">
-                        Select predefined test sector or drag vessel marker on map:
-                      </span>
-                      {demoCoords && (
-                        <span className="font-mono font-semibold text-foreground text-xs">
-                          {demoCoords.latitude.toFixed(4)}°N, {demoCoords.longitude.toFixed(4)}°E ({demoCoords.name || "Custom"})
-                        </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 font-mono text-xs">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={demoCoords?.presetKey === "safe" ? "default" : "outline"}
-                        className={cn(
-                          "h-8 text-xs font-medium px-2 justify-start truncate",
-                          demoCoords?.presetKey === "safe"
-                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                            : "hover:border-emerald-500 hover:text-emerald-500"
-                        )}
-                        onClick={() => enableDemoWithPreset("safe")}
-                      >
-                        🟢 Safe Water
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={demoCoords?.presetKey === "caution" ? "default" : "outline"}
-                        className={cn(
-                          "h-8 text-xs font-medium px-2 justify-start truncate",
-                          demoCoords?.presetKey === "caution"
-                            ? "bg-amber-600 hover:bg-amber-700 text-white"
-                            : "hover:border-amber-500 hover:text-amber-500"
-                        )}
-                        onClick={() => enableDemoWithPreset("caution")}
-                      >
-                        🟠 Caution Zone
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={demoCoords?.presetKey === "restricted" ? "default" : "outline"}
-                        className={cn(
-                          "h-8 text-xs font-medium px-2 justify-start truncate",
-                          demoCoords?.presetKey === "restricted"
-                            ? "bg-red-600 hover:bg-red-700 text-white"
-                            : "hover:border-red-500 hover:text-red-500"
-                        )}
-                        onClick={() => enableDemoWithPreset("restricted")}
-                      >
-                        🔴 Restricted MPA
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={demoCoords?.presetKey === "outsideBoundary" ? "default" : "outline"}
-                        className={cn(
-                          "h-8 text-xs font-medium px-2 justify-start truncate",
-                          demoCoords?.presetKey === "outsideBoundary"
-                            ? "bg-purple-600 hover:bg-purple-700 text-white"
-                            : "hover:border-purple-500 hover:text-purple-500"
-                        )}
-                        onClick={() => enableDemoWithPreset("outsideBoundary")}
-                      >
-                        🚨 Outside IMBL
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 text-xs font-medium px-2 justify-start truncate"
-                        onClick={resetToActualGps}
-                      >
-                        🔄 Reset GPS
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
             {/* SECTION 2 — TACTICAL MARITIME MAP WITH FLOATING HUD */}
             <div className="w-full">
               <MapView
                 title="Tactical Maritime Navigation & Boundary Operations"
-                description={
-                  isDemoMode
-                    ? "Demonstration Mode Active — Drag vessel marker or click map to test real geofence and security reactions"
-                    : "Real-time georeferenced OSM tactical overlay with IMBL sectors, MPAs, and escape vectors"
-                }
+                description="Real-time georeferenced OSM tactical overlay with IMBL sectors, MPAs, and escape vectors"
                 markers={mapMarkers}
                 polygons={polygons}
                 path={mapPath}
                 track={mapTrack}
-                isDraggable={isDemoMode}
-                onMarkerDragEnd={(coords) => {
-                  setManualDemoCoords({ latitude: coords.lat, longitude: coords.lon });
-                  toast.info(`Simulated vessel repositioned to ${coords.lat.toFixed(4)}°N, ${coords.lon.toFixed(4)}°E`);
-                }}
-                onMapClick={(coords) => {
-                  if (isDemoMode) {
-                    setManualDemoCoords({ latitude: coords.lat, longitude: coords.lon });
-                    toast.info(`Simulated vessel repositioned to ${coords.lat.toFixed(4)}°N, ${coords.lon.toFixed(4)}°E`);
-                  }
-                }}
                 pathLabel={
                   geofence.nearestSafeHarbor
                     ? `Direct Heading to ${geofence.nearestSafeHarbor.name} (${geofence.returnBearing})`

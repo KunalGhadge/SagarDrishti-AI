@@ -30,54 +30,6 @@ function getCardinalDirection(deg: number | null): string {
   return `${deg}° (${cardinals[idx]})`;
 }
 
-export interface DemoCoordinates {
-  latitude: number;
-  longitude: number;
-  speed?: number | null;
-  heading?: number | null;
-  name?: string;
-  presetKey?: "safe" | "caution" | "restricted" | "outsideBoundary" | "manual";
-}
-
-export const DEMO_PRESET_COORDINATES = {
-  safe: {
-    key: "safe" as const,
-    name: "Safe Water (Ratnagiri Offshore)",
-    latitude: 17.0000,
-    longitude: 72.5000,
-    speed: 9.2,
-    heading: 260,
-    description: "Open Arabian Sea navigable waters (143 km from boundaries/MPAs — SAFE)",
-  },
-  caution: {
-    key: "caution" as const,
-    name: "Orange / Caution Zone (Gulf of Kutch Buffer)",
-    latitude: 22.2000,
-    longitude: 69.1000,
-    speed: 6.8,
-    heading: 235,
-    description: "27.4 km from Marine National Park (SYSTEM_SAFETY_BUFFER_APPROACHING)",
-  },
-  restricted: {
-    key: "restricted" as const,
-    name: "Red / Restricted Zone (Malvan Marine Sanctuary MPA)",
-    latitude: 16.0600,
-    longitude: 73.4500,
-    speed: 4.5,
-    heading: 180,
-    description: "Inside statutory Marine Protected Area (MPA BREACH)",
-  },
-  outsideBoundary: {
-    key: "outsideBoundary" as const,
-    name: "Outside Maritime Boundary (Cross Indo-Sri Lanka IMBL)",
-    latitude: 9.5000,
-    longitude: 80.0000,
-    speed: 11.0,
-    heading: 85,
-    description: "Crossed bilateral IMBL line (IMBL BREACH — autonomous SOLAS trigger)",
-  },
-} as const;
-
 export function useVesselSecurity() {
   const { location, isWatching, requestLocation, error: gpsError } = useUserLocation();
 
@@ -85,85 +37,11 @@ export function useVesselSecurity() {
     useShallow((state) => [state.incidentWorkflow, state.mutate])
   );
 
-  // Reset Incident Workflow
-  const resetIncidentWorkflow = useCallback(() => {
-    appStoreMutate({
-      incidentWorkflow: {
-        isActive: false,
-        incidentId: null,
-        stage: "IDLE",
-        countdownDeadline: null,
-        zoneName: "",
-        coordinates: { lat: 0, lon: 0 },
-        speedKts: null,
-        headingDeg: null,
-        nearestPort: "",
-        portDistanceNM: 0,
-        returnBearing: "",
-        weatherSummary: "",
-        detectedAt: "",
-        timeline: [],
-        provenance: null,
-      },
-    });
-  }, [appStoreMutate]);
-
   // In-memory track history (stores only real observed positions)
   const trackHistoryRef = useRef<Array<{ timestamp: number; lat: number; lon: number; speed: number | null; heading: number | null }>>([]);
 
-  // Demo / Simulation Mode State
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
-  const [demoCoords, setDemoCoords] = useState<DemoCoordinates | null>(null);
-
-  const resetToActualGps = useCallback(() => {
-    setIsDemoMode(false);
-    setDemoCoords(null);
-    resetIncidentWorkflow();
-  }, [resetIncidentWorkflow]);
-
-  const enableDemoWithPreset = useCallback((presetKey: keyof typeof DEMO_PRESET_COORDINATES) => {
-    const preset = DEMO_PRESET_COORDINATES[presetKey];
-    setIsDemoMode(true);
-    setDemoCoords({
-      latitude: preset.latitude,
-      longitude: preset.longitude,
-      speed: preset.speed,
-      heading: preset.heading,
-      name: preset.name,
-      presetKey,
-    });
-    if (presetKey === "safe") {
-      resetIncidentWorkflow();
-    }
-  }, [resetIncidentWorkflow]);
-
-  const setManualDemoCoords = useCallback((coords: { latitude: number; longitude: number; speed?: number | null; heading?: number | null }) => {
-    setIsDemoMode(true);
-    setDemoCoords((prev) => ({
-      latitude: coords.latitude,
-      longitude: coords.longitude,
-      speed: coords.speed ?? prev?.speed ?? 7.5,
-      heading: coords.heading ?? prev?.heading ?? 240,
-      name: "Manual Position",
-      presetKey: "manual",
-    }));
-  }, []);
-
-  // Live active coordinates - Intercepted cleanly at input boundary when Demo Mode is active
+  // Live active coordinates - ZERO FABRICATED FALLBACK
   const activeCoords = useMemo(() => {
-    if (isDemoMode && demoCoords && demoCoords.latitude != null && demoCoords.longitude != null) {
-      return {
-        latitude: demoCoords.latitude,
-        longitude: demoCoords.longitude,
-        speed: demoCoords.speed ?? 8.0,
-        heading: demoCoords.heading ?? 240,
-        accuracy: 5,
-        timestamp: Date.now(),
-        isLive: true,
-        isSimulated: true,
-      };
-    }
-
     if (location?.latitude && location?.longitude) {
       return {
         latitude: location.latitude,
@@ -173,7 +51,6 @@ export function useVesselSecurity() {
         accuracy: location.accuracy ?? null,
         timestamp: location.timestamp ?? Date.now(),
         isLive: true,
-        isSimulated: false,
       };
     }
     // Strictly honest: when GNSS is unacquired, coordinates are NULL (never fabricated)
@@ -185,9 +62,8 @@ export function useVesselSecurity() {
       accuracy: null,
       timestamp: null,
       isLive: false,
-      isSimulated: false,
     };
-  }, [location, isDemoMode, demoCoords]);
+  }, [location]);
 
   // Update track history when live GPS position changes
   useEffect(() => {
@@ -495,13 +371,6 @@ export function useVesselSecurity() {
     appStoreMutate,
   ]);
 
-  // Auto-reset incident workflow when exiting demo mode or navigating out of restricted zones into safe waters
-  useEffect(() => {
-    if (!isDemoMode && incidentWorkflow?.isActive && (!geofenceEval.isInsideRestrictedZone || !geofenceEval.canTriggerAutonomousBreach)) {
-      resetIncidentWorkflow();
-    }
-  }, [isDemoMode, incidentWorkflow?.isActive, geofenceEval.isInsideRestrictedZone, geofenceEval.canTriggerAutonomousBreach, resetIncidentWorkflow]);
-
   // Operator Action 1: Intentional Movement
   const confirmIntentional = useCallback(() => {
     const nowTime = new Date().toLocaleTimeString();
@@ -543,7 +412,28 @@ export function useVesselSecurity() {
     toast.error("🚨 Emergency SOS Workflow Activated — Authority Dispatch Prepared");
   }, [appStoreMutate]);
 
-  // resetIncidentWorkflow is defined above near state initialization
+  // Reset Incident Workflow
+  const resetIncidentWorkflow = useCallback(() => {
+    appStoreMutate({
+      incidentWorkflow: {
+        isActive: false,
+        incidentId: null,
+        stage: "IDLE",
+        countdownDeadline: null,
+        zoneName: "",
+        coordinates: { lat: 0, lon: 0 },
+        speedKts: null,
+        headingDeg: null,
+        nearestPort: "",
+        portDistanceNM: 0,
+        returnBearing: "",
+        weatherSummary: "",
+        detectedAt: "",
+        timeline: [],
+        provenance: null,
+      },
+    });
+  }, [appStoreMutate]);
 
   // 5. Incident State Machine & Real Timeline History
   const breachStartTimeRef = useRef<number | null>(null);
@@ -570,13 +460,7 @@ export function useVesselSecurity() {
   const incidentState: IncidentState = useMemo(() => {
     const isBreach = geofenceEval.isInsideRestrictedZone && geofenceEval.canTriggerAutonomousBreach;
     const durationMins = parseFloat((incidentDurationSec / 60).toFixed(1));
-    const isEscalated = Boolean(
-      incidentWorkflow?.isActive && (
-        (isDemoMode && (incidentWorkflow.stage === "UNRESPONSIVE_ESCALATED" || incidentWorkflow.stage === "SOS_TRIGGERED")) ||
-        (!isDemoMode && geofenceEval.isInsideRestrictedZone && incidentWorkflow.stage === "UNRESPONSIVE_ESCALATED") ||
-        incidentWorkflow.stage === "SOS_TRIGGERED"
-      )
-    );
+    const isEscalated = incidentWorkflow?.stage === "UNRESPONSIVE_ESCALATED" || incidentWorkflow?.stage === "SOS_TRIGGERED";
 
     if ((isBreach || isEscalated) && activeCoords.latitude != null && activeCoords.longitude != null) {
       return {
@@ -623,7 +507,7 @@ export function useVesselSecurity() {
         coastalPolice: "1093",
       },
     };
-  }, [geofenceEval, incidentDurationSec, incidentWorkflow, activeCoords.latitude, activeCoords.longitude, isDemoMode]);
+  }, [geofenceEval, incidentDurationSec, incidentWorkflow, activeCoords.latitude, activeCoords.longitude]);
 
   // 6. Active Alerts List (Generated strictly from REAL monitored data)
   const activeAlerts: ActiveAlert[] = useMemo(() => {
@@ -709,20 +593,11 @@ export function useVesselSecurity() {
 
   // 7. Overall Security Status (Derived strictly from real conditions)
   const overallLevel: SecurityLevel = useMemo(() => {
-    // Only consider breach incident workflow if in demo mode OR if actual vessel is genuinely inside a restricted zone
-    const isRestrictedBreach = isDemoMode
-      ? (incidentWorkflow?.stage === "BREACH_COUNTDOWN" ||
-         incidentWorkflow?.stage === "UNRESPONSIVE_ESCALATED" ||
-         incidentWorkflow?.stage === "SOS_TRIGGERED" ||
-         incidentState.isIncident)
-      : (geofenceEval.isInsideRestrictedZone && (incidentState.isIncident || incidentWorkflow?.stage === "BREACH_COUNTDOWN" || incidentWorkflow?.stage === "UNRESPONSIVE_ESCALATED"));
-
-    // Also consider manual emergency SOS triggered in current session
-    const isManualSos = incidentWorkflow?.isActive && incidentWorkflow?.stage === "SOS_TRIGGERED";
-
     if (
-      isRestrictedBreach ||
-      isManualSos ||
+      incidentWorkflow?.stage === "BREACH_COUNTDOWN" ||
+      incidentWorkflow?.stage === "UNRESPONSIVE_ESCALATED" ||
+      incidentWorkflow?.stage === "SOS_TRIGGERED" ||
+      incidentState.isIncident ||
       weatherState.status === "CRITICAL" ||
       cycloneState.status === "CRITICAL"
     ) {
@@ -737,16 +612,7 @@ export function useVesselSecurity() {
       return "WARNING";
     }
     return "SAFE";
-  }, [
-    isDemoMode,
-    incidentWorkflow?.isActive,
-    incidentWorkflow?.stage,
-    incidentState.isIncident,
-    geofenceEval.isInsideRestrictedZone,
-    geofenceEval.status,
-    weatherState.status,
-    cycloneState.status,
-  ]);
+  }, [incidentWorkflow?.stage, incidentState.isIncident, weatherState.status, cycloneState.status, geofenceEval.status]);
 
   // 8. Data Quality & Integrity Status
   const dataIntegrity: DataQualityIntegrity = useMemo(() => {
@@ -808,13 +674,9 @@ export function useVesselSecurity() {
     headingDegrees: activeCoords.isLive ? activeCoords.heading : null,
     headingCardinal: activeCoords.isLive && activeCoords.heading != null ? getCardinalDirection(activeCoords.heading) : "Unavailable",
     timestamp: activeCoords.isLive ? activeCoords.timestamp : null,
-    trackingStatus: isDemoMode
-      ? "SIMULATED_DEMO"
-      : activeCoords.isLive
-      ? (isWatching ? "LIVE_GNSS" : "CACHED_POSITION")
-      : "UNAVAILABLE",
-    isSimulated: isDemoMode,
-  }), [activeCoords, isWatching, isDemoMode]);
+    trackingStatus: activeCoords.isLive ? (isWatching ? "LIVE_GNSS" : "CACHED_POSITION") : "UNAVAILABLE",
+    isSimulated: false,
+  }), [activeCoords, isWatching]);
 
   return {
     overallLevel,
@@ -837,13 +699,5 @@ export function useVesselSecurity() {
     resetIncidentWorkflow,
     requestLocation,
     refreshWeather: () => fetchProactiveWeather(activeCoords.latitude, activeCoords.longitude),
-    // Demo Mode Interface
-    isDemoMode,
-    demoCoords,
-    setIsDemoMode,
-    enableDemoWithPreset,
-    setManualDemoCoords,
-    resetToActualGps,
-    presets: DEMO_PRESET_COORDINATES,
   };
 }

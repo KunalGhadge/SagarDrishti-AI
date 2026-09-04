@@ -48,9 +48,6 @@ export interface MapViewProps {
   hudOverlay?: React.ReactNode;
   className?: string;
   mapHeight?: string;
-  isDraggable?: boolean;
-  onMarkerDragEnd?: (coords: { lat: number; lon: number }) => void;
-  onMapClick?: (coords: { lat: number; lon: number }) => void;
 }
 
 export function MapView(props: MapViewProps) {
@@ -65,9 +62,6 @@ export function MapView(props: MapViewProps) {
     hudOverlay,
     className,
     mapHeight,
-    isDraggable = false,
-    onMarkerDragEnd,
-    onMapClick,
   } = props;
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -247,23 +241,7 @@ export function MapView(props: MapViewProps) {
           </div>
         `;
 
-        const isVesselMarkerDraggable = isDraggable && (m.type === "current" || m.type === "hazard");
-
-        const marker = L.marker([m.lat, m.lon], {
-          icon: customIcon,
-          draggable: isVesselMarkerDraggable,
-        }).addTo(map);
-
-        if (isVesselMarkerDraggable && onMarkerDragEnd) {
-          marker.on("dragend", (e: any) => {
-            const latLng = e.target.getLatLng();
-            onMarkerDragEnd({
-              lat: parseFloat(latLng.lat.toFixed(4)),
-              lon: parseFloat(latLng.lng.toFixed(4)),
-            });
-          });
-        }
-
+        const marker = L.marker([m.lat, m.lon], { icon: customIcon }).addTo(map);
         marker.bindPopup(popupContent);
         bounds.extend([m.lat, m.lon]);
       });
@@ -345,15 +323,6 @@ export function MapView(props: MapViewProps) {
         map.fitBounds(bounds, { padding: [35, 35], maxZoom: 11 });
       }
 
-      if (onMapClick) {
-        map.on("click", (e: any) => {
-          onMapClick({
-            lat: parseFloat(e.latlng.lat.toFixed(4)),
-            lon: parseFloat(e.latlng.lng.toFixed(4)),
-          });
-        });
-      }
-
       // Ensure proper sizing when rendered inside drawers or dynamic containers
       setTimeout(() => {
         if (isMounted && mapInstanceRef.current) {
@@ -371,7 +340,7 @@ export function MapView(props: MapViewProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, [markers, polygons, path, pathLabel, track, isDraggable, onMarkerDragEnd, onMapClick]);
+  }, [markers, polygons, path, pathLabel, track]);
 
   return (
     <Card className={cn("w-full overflow-hidden border bg-card text-card-foreground shadow-sm relative", className)}>

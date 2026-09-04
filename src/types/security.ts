@@ -100,7 +100,7 @@ export interface VesselTelemetry {
   headingDegrees: number | null;
   headingCardinal: string | null;
   timestamp: number | null;
-  trackingStatus: "LIVE_GNSS" | "CACHED_POSITION" | "UNAVAILABLE" | "SIMULATED_DEMO";
+  trackingStatus: "LIVE_GNSS" | "CACHED_POSITION" | "UNAVAILABLE";
   isSimulated?: boolean;
 }
 
