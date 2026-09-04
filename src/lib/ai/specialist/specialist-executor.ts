@@ -37,11 +37,14 @@ export interface SpecialistExecutionResult {
   llmInvoked: boolean;
   llmSteps: number;
   warnings: string[];
+  executionDurationMs?: number;
+  agentIcon?: string;
 }
 
 export async function executeSpecialistAgentLoop(
   input: SpecialistExecutionInput
 ): Promise<SpecialistExecutionResult> {
+  const startTime = Date.now();
   const { agent, task, context, maxSteps = 5 } = input;
   const agentInstructions = (agent as Agent).instructions;
   const agentRole = agentInstructions?.role || agent.name;
@@ -171,6 +174,8 @@ Please use your dynamically mounted tools to retrieve necessary data, perform an
       llmInvoked: true,
       llmSteps: llmResult.steps?.length || 1,
       warnings,
+      executionDurationMs: Date.now() - startTime,
+      agentIcon: (agent.icon as any)?.value ?? "🤖",
     };
   } catch (llmError: any) {
     console.warn(`[SPECIALIST AGENT WARN] [${agent.name}]: Primary generation failed (${llmError.message}). Attempting centralized failover.`);
@@ -197,6 +202,8 @@ Please use your dynamically mounted tools to retrieve necessary data, perform an
         llmInvoked: true,
         llmSteps: failoverResult.toolCallsExecuted.length + 1,
         warnings: [...warnings, ...failoverResult.warnings],
+        executionDurationMs: Date.now() - startTime,
+        agentIcon: (agent.icon as any)?.value ?? "🤖",
       };
     } catch (fallbackError: any) {
       console.error(`[SPECIALIST AGENT ERROR] [${agent.name}]: All model attempts failed:`, fallbackError.message);
@@ -213,6 +220,8 @@ Please use your dynamically mounted tools to retrieve necessary data, perform an
         llmInvoked: true,
         llmSteps: 0,
         warnings: [...warnings, fallbackError.message],
+        executionDurationMs: Date.now() - startTime,
+        agentIcon: (agent.icon as any)?.value ?? "🤖",
       };
     }
   }

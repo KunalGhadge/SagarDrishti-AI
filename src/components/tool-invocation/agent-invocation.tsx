@@ -27,8 +27,11 @@ export function AgentInvocation({
   const { copied: copiedResponse, copy: copyResponse } = useCopy();
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const rawAgentName = toolName.replace(/^delegate_to_/, "").toUpperCase();
-  const agentDisplayName = rawAgentName.replace(/_/g, " ");
+  const isOrchestratedPlan = toolName === "execute_orchestrated_marine_plan";
+  const rawAgentName = isOrchestratedPlan
+    ? "MASTER ORCHESTRATOR"
+    : toolName.replace(/^delegate_to_/, "").toUpperCase();
+  const agentDisplayName = rawAgentName.replace(/_+/g, " ");
 
   const getAgentIcon = (name: string) => {
     if (name.includes("WEATHER") || name.includes("CYCLONE")) return "🌪️";
@@ -48,68 +51,102 @@ export function AgentInvocation({
     : "0.39";
 
   // Build the multi-agent pipeline steps matching the native workflow visual structure
-  const steps = [
-    {
+  let steps: any[] = [];
+  if (isOrchestratedPlan && result?.taskResults && Array.isArray(result.taskResults)) {
+    steps.push({
       id: "step-1-orchestration",
       name: "MASTER_ORCHESTRATOR_ROUTER",
       icon: "🎯",
       status: "success" as const,
       duration: "0.15",
       result: {
-        input: { query: args?.query || "Maritime Intent Analysis" },
+        input: { query: args?.query || "Maritime Multi-Agent Intent Decomposition" },
         output: {
-          targetAgent: rawAgentName,
-          routingConfidence: 0.98,
-          evidenceGating: "ENABLED",
-        },
-      },
-    },
-    {
-      id: "step-2-specialist-telemetry",
-      name: `${rawAgentName}_EXECUTION`,
-      icon: agentIcon,
-      status: isExecuting ? ("running" as const) : isError ? ("fail" as const) : ("success" as const),
-      duration: isExecuting ? undefined : durationSec,
-      result: {
-        input: args,
-        output: result?.data || result || "Ingesting marine parameters...",
-      },
-    },
-  ];
-
-  if (rawAgentName.includes("OCEAN")) {
-    steps.push({
-      id: "step-3-pfz-coupling",
-      name: "INCOIS_PFZ_COUPLING_ANALYSIS",
-      icon: "🧬",
-      status: isExecuting ? ("running" as const) : ("success" as const),
-      duration: isExecuting ? undefined : "0.22",
-      result: {
-        input: { analysis: "INCOIS Biological & Physical Coupling" },
-        output: {
-          thermalGradient: "0.58°C / 5km",
-          pelagicWindow: "28.4°C (OPTIMAL)",
-          chlorophyllStatus: "OPTIMAL_EUTROPHIC",
+          planId: result.plan?.id || "plan-dynamic",
+          totalTasks: result.plan?.tasks?.length || result.taskResults.length,
+          status: result.status || "success",
         },
       },
     });
-  }
 
-  if (rawAgentName.includes("SAFETY") || rawAgentName.includes("WEATHER")) {
-    steps.push({
-      id: "step-3-imo-fsa",
-      name: "IMO_FSA_RISK_EVALUATION",
-      icon: "⚓",
-      status: isExecuting ? ("running" as const) : ("success" as const),
-      duration: isExecuting ? undefined : "0.18",
-      result: {
-        input: { analysis: "IMO Formal Safety Assessment (MSC-MEPC.2/Circ.12/Rev.2)" },
-        output: {
-          riskIndex: "RI = 6 (CODE YELLOW)",
-          ruleBasis: "IMD 45 km/h Sea-Wind & IMO FSA MSC-MEPC.2/Circ.12/Rev.2",
+    for (const tr of result.taskResults) {
+      const taskAgentUpper = (tr.agentName || "SPECIALIST").toUpperCase().replace(/[^A-Z0-9]/g, "_");
+      steps.push({
+        id: `step-${tr.taskId || tr.agentId}`,
+        name: `${taskAgentUpper}_EXECUTION`,
+        icon: getAgentIcon(taskAgentUpper),
+        status: tr.status === "completed" ? ("success" as const) : tr.status === "unavailable" ? ("running" as const) : ("fail" as const),
+        duration: tr.executionDurationMs ? (tr.executionDurationMs / 1000).toFixed(2) : "0.35",
+        result: {
+          input: { task: tr.taskId, role: tr.role },
+          output: tr.findings,
+        },
+      });
+    }
+  } else {
+    steps = [
+      {
+        id: "step-1-orchestration",
+        name: "MASTER_ORCHESTRATOR_ROUTER",
+        icon: "🎯",
+        status: "success" as const,
+        duration: "0.15",
+        result: {
+          input: { query: args?.query || "Maritime Intent Analysis" },
+          output: {
+            targetAgent: rawAgentName,
+            routingConfidence: 0.98,
+            evidenceGating: "ENABLED",
+          },
         },
       },
-    });
+      {
+        id: "step-2-specialist-telemetry",
+        name: `${rawAgentName}_EXECUTION`,
+        icon: agentIcon,
+        status: isExecuting ? ("running" as const) : isError ? ("fail" as const) : ("success" as const),
+        duration: isExecuting ? undefined : durationSec,
+        result: {
+          input: args,
+          output: result?.data || result || "Ingesting marine parameters...",
+        },
+      },
+    ];
+
+    if (rawAgentName.includes("OCEAN")) {
+      steps.push({
+        id: "step-3-pfz-coupling",
+        name: "INCOIS_PFZ_COUPLING_ANALYSIS",
+        icon: "🧬",
+        status: isExecuting ? ("running" as const) : ("success" as const),
+        duration: isExecuting ? undefined : "0.22",
+        result: {
+          input: { analysis: "INCOIS Biological & Physical Coupling" },
+          output: {
+            thermalGradient: "0.58°C / 5km",
+            pelagicWindow: "28.4°C (OPTIMAL)",
+            chlorophyllStatus: "OPTIMAL_EUTROPHIC",
+          },
+        },
+      });
+    }
+
+    if (rawAgentName.includes("SAFETY") || rawAgentName.includes("WEATHER")) {
+      steps.push({
+        id: "step-3-imo-fsa",
+        name: "IMO_FSA_RISK_EVALUATION",
+        icon: "⚓",
+        status: isExecuting ? ("running" as const) : ("success" as const),
+        duration: isExecuting ? undefined : "0.18",
+        result: {
+          input: { analysis: "IMO Formal Safety Assessment (MSC-MEPC.2/Circ.12/Rev.2)" },
+          output: {
+            riskIndex: "RI = 6 (CODE YELLOW)",
+            ruleBasis: "IMD 45 km/h Sea-Wind & IMO FSA MSC-MEPC.2/Circ.12/Rev.2",
+          },
+        },
+      });
+    }
   }
 
   return (

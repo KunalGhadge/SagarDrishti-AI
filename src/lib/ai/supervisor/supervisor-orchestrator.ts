@@ -81,7 +81,7 @@ export function createMarineSupervisorTools(
   // 3. Master Multi-Agent Planner & Orchestrator Tool
   tools["execute_orchestrated_marine_plan"] = createTool({
     description:
-      "Executes the full multi-agent orchestrated plan: discovers capabilities from PostgreSQL, schedules concurrent DAG tasks, evaluates specialist results, and produces comprehensive decision intelligence.",
+      "INTERNAL BATCH ENGINE ONLY: Headless automated DAG runner. In interactive chat, DO NOT call this tool; instead, invoke the specific specialist agent tools (delegate_to_...) step-by-step to demonstrate observable multi-agent collaboration cards to the user.",
     inputSchema: z.object({
       query: z.string().describe("User's maritime, fishing, weather, or navigational query"),
       location: z.string().optional().describe("Target coastal city, harbor, or sector"),

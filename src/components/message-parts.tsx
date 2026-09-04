@@ -938,7 +938,10 @@ export const ToolMessagePart = memo(
     );
 
     const CustomToolComponent = useMemo(() => {
-      if (toolName.startsWith("delegate_to_")) {
+      if (
+        toolName.startsWith("delegate_to_") ||
+        toolName === "execute_orchestrated_marine_plan"
+      ) {
         return (
           <AgentInvocationComponent
             key={toolCallId}
