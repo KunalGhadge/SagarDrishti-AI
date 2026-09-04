@@ -108,7 +108,6 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     threadMentions,
     pendingThreadMention,
     threadImageToolModel,
-    pendingChatMessage,
   ] = appStore(
     useShallow((state) => [
       state.mutate,
@@ -120,7 +119,6 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
       state.threadMentions,
       state.pendingThreadMention,
       state.threadImageToolModel,
-      state.pendingChatMessage,
     ]),
   );
 
@@ -349,23 +347,71 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     debounce(() => setShowParticles(true), 60000);
   }, []);
 
+  const shouldAutoScrollRef = useRef(true);
+
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const { scrollTop, scrollHeight, clientHeight } = container;
-    const isScrollAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    const isCloseToBottom = scrollHeight - scrollTop - clientHeight < 150;
 
-    setIsAtBottom(isScrollAtBottom);
+    setIsAtBottom(isCloseToBottom);
+    shouldAutoScrollRef.current = isCloseToBottom;
     handleFocus();
   }, [handleFocus]);
 
   const scrollToBottom = useCallback(() => {
+    shouldAutoScrollRef.current = true;
     containerRef.current?.scrollTo({
       top: containerRef.current.scrollHeight,
       behavior: "smooth",
     });
   }, []);
+
+  // Continuously autoscroll to bottom as tokens stream in and cards/sub-steps render
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let rafId: number;
+    const observer = new MutationObserver(() => {
+      if (shouldAutoScrollRef.current) {
+        cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: "instant",
+          });
+        });
+      }
+    });
+
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+  }, []);
+
+  // Also autoscroll on message state / loading changes
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (shouldAutoScrollRef.current) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: isLoading ? "instant" : "smooth",
+      });
+    }
+  }, [messages, isLoading]);
 
   useEffect(() => {
     appStoreMutate({ currentThreadId: threadId });
@@ -386,14 +432,16 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     }
   }, [pendingThreadMention, threadId, appStoreMutate]);
 
-  // Auto-send danger scenario message from Vessel Security Panel demo trigger
+  // Auto-send danger scenario message from Vessel Security Panel demo trigger ONLY into a fresh new chat
   useEffect(() => {
-    if (pendingChatMessage && status === "ready" && !isLoading) {
-      const messageToSend = pendingChatMessage;
-      appStoreMutate({ pendingChatMessage: undefined });
-      sendMessage({ text: messageToSend });
+    if (typeof window === "undefined") return;
+    const pendingMsg = sessionStorage.getItem("sagar_pending_emergency_message");
+    if (pendingMsg && messages.length === 0 && status === "ready" && !isLoading) {
+      sessionStorage.removeItem("sagar_pending_emergency_message");
+      shouldAutoScrollRef.current = true;
+      sendMessage({ text: pendingMsg });
     }
-  }, [pendingChatMessage, status, isLoading, sendMessage, appStoreMutate]);
+  }, [messages.length, status, isLoading, sendMessage]);
 
   // Emergency 10-second automatic confirmation countdown state
   const [emergencyCountdown, setEmergencyCountdown] = useState<{
@@ -439,6 +487,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
 
     if (emergencyCountdown.secondsLeft <= 0) {
       setEmergencyCountdown(null);
+      shouldAutoScrollRef.current = true;
       sendMessage({ text: "yes" });
       return;
     }
@@ -447,6 +496,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
       setEmergencyCountdown((prev) => {
         if (!prev) return null;
         if (prev.secondsLeft <= 1) {
+          shouldAutoScrollRef.current = true;
           sendMessage({ text: "yes" });
           return null;
         }
@@ -459,11 +509,13 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
 
   const handleCancelEmergency = useCallback(() => {
     setEmergencyCountdown(null);
+    shouldAutoScrollRef.current = true;
     sendMessage({ text: "no" });
   }, [sendMessage]);
 
   const handleConfirmEmergencyNow = useCallback(() => {
     setEmergencyCountdown(null);
+    shouldAutoScrollRef.current = true;
     sendMessage({ text: "yes" });
   }, [sendMessage]);
 
