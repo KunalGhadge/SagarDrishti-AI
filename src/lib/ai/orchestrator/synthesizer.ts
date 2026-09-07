@@ -1,5 +1,6 @@
 import { ExecutionPlan, SpecialistTaskResult } from "./types";
 import { resolveNearbyVerifiedPorts } from "../engines/marine-geospatial-engine";
+import { enforceOutputGuard } from "../guard/output-guard";
 
 export function synthesizeOrchestrationResponse(
   userQuery: string,
@@ -82,36 +83,36 @@ export function synthesizeOrchestrationResponse(
       sections.push(`- **Nearest Verified Major Port:** **${primaryPort.name}** (${primaryPort.state})`);
       sections.push(`- **Nautical Distance & Bearing:** **${primaryPort.distanceNM} NM** (${primaryPort.distanceKm} km) on heading **${primaryPort.bearing}**`);
       sections.push(
-        `- **Direct Recommendation:** ${
+        `- **Operational Assessment:** ${
           verdict.includes("CODE GREEN")
-            ? `**YES, IT IS SAFE TO PROCEED.** Marine sea-state conditions (${waveHeight ? `${waveHeight}m waves` : "smooth sea"} / ${windSpeed ? `${windSpeed} km/h winds` : "moderate breeze"}) remain well within safe navigational parameters for transit and port entry.`
+            ? `Environmental risk is currently assessed as **LOW** based on available sea-state data (${waveHeight ? `${waveHeight}m waves` : "smooth sea"} / ${windSpeed ? `${windSpeed} km/h winds` : "moderate breeze"}). (Note: This is an environmental risk evaluation, not statutory navigation clearance or a guarantee of voyage safety.)`
             : verdict.includes("CODE YELLOW")
-            ? `**PROCEED WITH CAUTION.** Small vessels should monitor coastal VHF Channel 16. Sea conditions are moderate.`
-            : `**DO NOT VENTURE.** Severe sea state or weather restrictions active along the approach.`
+            ? `Environmental risk is evaluated as **MODERATE (CAUTION)**. Small vessels should monitor coastal VHF Channel 16.`
+            : `**ELEVATED RISK / RESTRICTION ACTIVE.** Severe sea state or weather restrictions active along the approach.`
         }`
       );
     } else {
       sections.push(`### 🛡️ Maritime Passage & Venture Safety Assessment`);
-      sections.push(`**Operational Safety Verdict:** **${verdict}** (IMO Risk Index = ${riskIndex})`);
+      sections.push(`**Operational Environmental Risk:** **${verdict}** (IMO Risk Index = ${riskIndex})`);
       sections.push(
-        `- **Direct Recommendation:** ${
+        `- **Operational Assessment:** ${
           verdict.includes("CODE GREEN")
-            ? `**YES, IT IS SAFE TO PROCEED.** Marine sea-state conditions (${waveHeight ? `${waveHeight}m waves` : "smooth sea"} / ${windSpeed ? `${windSpeed} km/h winds` : "moderate breeze"}) remain well within safe navigational parameters.`
+            ? `Current environmental risk is evaluated as **LOW** based on live meteorological and oceanographic data (${waveHeight ? `${waveHeight}m waves` : "smooth sea"} / ${windSpeed ? `${windSpeed} km/h winds` : "moderate breeze"}). This is an environmental risk assessment, not navigation clearance or a guarantee of voyage safety.`
             : verdict.includes("CODE YELLOW")
-            ? `**PROCEED WITH CAUTION.** Small vessels should monitor coastal VHF Channel 16.`
-            : `**DO NOT VENTURE.** Severe sea state or weather restrictions active in this maritime sector.`
+            ? `Current environmental risk is evaluated as **MODERATE (CAUTION)**. Small vessels should maintain VHF Channel 16 watch.`
+            : `**ELEVATED RISK / RESTRICTION ACTIVE.** Hazardous sea conditions active in this maritime sector.`
         }`
       );
     }
   } else if (isPfzQuery) {
-    sections.push(`### 🐟 Potential Fishing Zones & Marine Operational Assessment`);
-    sections.push(`**Operational Safety Verdict:** **${verdict}** (IMO Risk Index = ${riskIndex})`);
+    sections.push(`### 🐟 Potential Fishing Zones & Oceanographic Evidence`);
+    sections.push(`**Operational Environmental Risk:** **${verdict}** (IMO Risk Index = ${riskIndex})`);
     sections.push(`- **Reference Sector:** ${primaryPort.name} Offshore (${effectiveCoords.latitude.toFixed(4)}°N, ${effectiveCoords.longitude.toFixed(4)}°E)`);
-    if (sst) sections.push(`- **Sea Surface Temperature (SST):** ${sst}°C (${sst >= 26.5 && sst <= 29.2 ? "Optimal pelagic fishing window" : "Thermal baseline active"})`);
+    if (sst) sections.push(`- **Sea Surface Temperature (SST):** ${sst}°C (${sst >= 26.5 && sst <= 29.2 ? "Oceanographic thermal window active" : "Thermal baseline active"})`);
     if (waveHeight) sections.push(`- **Transit Sea State:** Significant Wave Height = ${waveHeight} m (Smooth to Slight)`);
   } else {
     sections.push(`### ⚓ Multi-Agent Marine Intelligence Synthesis: **${primaryPort.name}**`);
-    sections.push(`**Operational Verdict:** **${verdict}** (IMO Risk Index = ${riskIndex})`);
+    sections.push(`**Operational Environmental Risk:** **${verdict}** (IMO Risk Index = ${riskIndex})`);
   }
 
   // ==========================================
@@ -189,7 +190,9 @@ export function synthesizeOrchestrationResponse(
     }
   }
 
-  return sections.join("\n");
+  const rawMarkdown = sections.join("\n");
+  const guarded = enforceOutputGuard(rawMarkdown, { userQuery });
+  return guarded.guardedText;
 }
 
 function extractNumericValue(results: SpecialistTaskResult[], patterns: RegExp[]): number | null {
