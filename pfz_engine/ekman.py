@@ -13,7 +13,11 @@ SCIENTIFIC PRINCIPLES & METHODOLOGY:
 
 from typing import Tuple, Optional, Union
 import numpy as np
-from .config import EKMAN_PERSISTENCE_ANGLE_MAX_DEG, EKMAN_DEFLECTION_NORTHERN_HEMISPHERE_DEG
+try:
+    from .config import EKMAN_PERSISTENCE_ANGLE_MAX_DEG, EKMAN_DEFLECTION_NORTHERN_HEMISPHERE_DEG
+except (ImportError, ValueError):
+    from config import EKMAN_PERSISTENCE_ANGLE_MAX_DEG, EKMAN_DEFLECTION_NORTHERN_HEMISPHERE_DEG
+
 
 
 def compute_circular_angular_difference(angle1_deg: float, angle2_deg: float) -> float:

@@ -178,7 +178,27 @@ export async function queryPfzV2Service(params: {
   vWindMs?: number | null;
   timeoutMs?: number;
 }): Promise<PfzV2AnalyzeResult> {
-  const serviceUrl = process.env.PFZ_SERVICE_URL || "http://127.0.0.1:8000";
+  // Support both server-side PFZ_SERVICE_URL and client/shared NEXT_PUBLIC_PFZ_API_URL
+  const configuredUrl = (
+    process.env.PFZ_SERVICE_URL ||
+    process.env.NEXT_PUBLIC_PFZ_API_URL ||
+    ""
+  ).trim();
+
+  // In production, require an explicit backend URL rather than falling back to localhost
+  const isProduction = process.env.NODE_ENV === "production";
+  if (!configuredUrl && isProduction) {
+    return {
+      status: "unavailable",
+      engineVersion: "pfz-v2",
+      candidates: [],
+      error:
+        "PFZ backend URL is not configured. Set PFZ_SERVICE_URL or NEXT_PUBLIC_PFZ_API_URL in production environment.",
+    };
+  }
+
+  const rawUrl = configuredUrl || "http://127.0.0.1:8000";
+  const serviceUrl = rawUrl.replace(/\/+$/, "");
   const timeoutMs = params.timeoutMs || 15000;
   const radiusKm = params.radiusKm || 100;
 
@@ -210,11 +230,22 @@ export async function queryPfzV2Service(params: {
         status: "unavailable",
         engineVersion: "pfz-v2",
         candidates: [],
-        error: `Python PFZ service HTTP ${res.status}: ${errText.slice(0, 100)}`,
+        error: `Python PFZ service HTTP ${res.status}: ${errText.slice(0, 150)}`,
       };
     }
 
-    const data = await res.json();
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      return {
+        status: "unavailable",
+        engineVersion: "pfz-v2",
+        candidates: [],
+        error: "Python PFZ service returned malformed JSON response",
+      };
+    }
+
     return {
       status: "available",
       engineVersion: data.engine_version || "pfz-v2",
@@ -223,7 +254,8 @@ export async function queryPfzV2Service(params: {
       candidates: data.results || [],
     };
   } catch (err: any) {
-    const isTimeout = err?.name === "AbortError" || err?.message?.includes("aborted");
+    const isTimeout =
+      err?.name === "AbortError" || err?.message?.includes("aborted");
     return {
       status: "unavailable",
       engineVersion: "pfz-v2",

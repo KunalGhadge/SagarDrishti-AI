@@ -15,7 +15,11 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 import math
 from datetime import datetime, timezone
-from .spatial import haversine_distance_km
+try:
+    from .spatial import haversine_distance_km
+except (ImportError, ValueError):
+    from spatial import haversine_distance_km
+
 
 
 class FishingObservation(BaseModel):

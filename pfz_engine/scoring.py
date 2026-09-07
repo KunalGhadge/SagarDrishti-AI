@@ -16,8 +16,13 @@ SCIENTIFIC HONESTY & COASTAL RULES:
 """
 
 from typing import Tuple, List, Optional
-from .config import CHL_HIGH_THRESHOLD
-from .models import FeatureDetectionResult
+try:
+    from .config import CHL_HIGH_THRESHOLD
+    from .models import FeatureDetectionResult
+except (ImportError, ValueError):
+    from config import CHL_HIGH_THRESHOLD
+    from models import FeatureDetectionResult
+
 
 
 def evaluate_chlorophyll_criterion(chl_mg_m3: Optional[float]) -> bool:

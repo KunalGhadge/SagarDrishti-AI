@@ -64,4 +64,8 @@ scratch/
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
+.pytest_cache/
+.venv/
+venv/
+*.nc
+*.nc4

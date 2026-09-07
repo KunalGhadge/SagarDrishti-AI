@@ -14,8 +14,13 @@ SCIENTIFIC & POLICY PRINCIPLES:
 
 from typing import Tuple, Optional
 from datetime import datetime, timezone
-from .config import FRESHNESS_FRESH_MAX_HOURS, FRESHNESS_PERSISTED_MAX_HOURS
-from .models import FreshnessMetadata
+try:
+    from .config import FRESHNESS_FRESH_MAX_HOURS, FRESHNESS_PERSISTED_MAX_HOURS
+    from .models import FreshnessMetadata
+except (ImportError, ValueError):
+    from config import FRESHNESS_FRESH_MAX_HOURS, FRESHNESS_PERSISTED_MAX_HOURS
+    from models import FreshnessMetadata
+
 
 
 def calculate_data_age_hours(observation_timestamp_iso: Optional[str]) -> float:

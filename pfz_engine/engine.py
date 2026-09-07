@@ -28,21 +28,98 @@ from typing import Optional, List, Dict, Any, Tuple
 import numpy as np
 import xarray as xr
 
-from .models import (
-    AnalyzeRequest,
-    AnalyzeResponse,
-    PfzCandidate,
-    FeatureDetectionResult,
-    DataEvidence,
-    FreshnessMetadata,
-    PersistenceMetadata,
-    EvidenceQuality,
-    DataQualityAssessment,
-    OceanographicFeatureStrength,
-    AlgorithmStability,
-    BiologicalValidationStatus,
-    ParameterTraceability,
-)
+try:
+    from .models import (
+        AnalyzeRequest,
+        AnalyzeResponse,
+        PfzCandidate,
+        FeatureDetectionResult,
+        DataEvidence,
+        FreshnessMetadata,
+        PersistenceMetadata,
+        EvidenceQuality,
+        DataQualityAssessment,
+        OceanographicFeatureStrength,
+        AlgorithmStability,
+        BiologicalValidationStatus,
+        ParameterTraceability,
+    )
+    from .config import (
+        CHL_HIGH_THRESHOLD,
+        COMMON_GRID_RESOLUTION_KM,
+        FRESHNESS_FRESH_MAX_HOURS,
+        FRESHNESS_PERSISTED_MAX_HOURS,
+    )
+    from .preprocessing import (
+        create_common_grid,
+        resample_to_grid,
+        compute_3day_chlorophyll_composite,
+    )
+    from .fronts import (
+        detect_sst_fronts,
+        detect_chl_fronts,
+        combine_front_features,
+    )
+    from .eddies import detect_mesoscale_eddies
+    from .relative_wind import compute_relative_wind
+    from .ekman import evaluate_ekman_persistence
+    from .scoring import (
+        evaluate_chlorophyll_criterion,
+        classify_feature_co_occurrence,
+    )
+    from .freshness import calculate_data_age_hours, evaluate_freshness
+    from .spatial import (
+        get_bounding_box_for_radius,
+        haversine_distance_nm,
+        calculate_compass_bearing,
+        rank_pfz_candidates,
+    )
+except (ImportError, ValueError):
+    from models import (
+        AnalyzeRequest,
+        AnalyzeResponse,
+        PfzCandidate,
+        FeatureDetectionResult,
+        DataEvidence,
+        FreshnessMetadata,
+        PersistenceMetadata,
+        EvidenceQuality,
+        DataQualityAssessment,
+        OceanographicFeatureStrength,
+        AlgorithmStability,
+        BiologicalValidationStatus,
+        ParameterTraceability,
+    )
+    from config import (
+        CHL_HIGH_THRESHOLD,
+        COMMON_GRID_RESOLUTION_KM,
+        FRESHNESS_FRESH_MAX_HOURS,
+        FRESHNESS_PERSISTED_MAX_HOURS,
+    )
+    from preprocessing import (
+        create_common_grid,
+        resample_to_grid,
+        compute_3day_chlorophyll_composite,
+    )
+    from fronts import (
+        detect_sst_fronts,
+        detect_chl_fronts,
+        combine_front_features,
+    )
+    from eddies import detect_mesoscale_eddies
+    from relative_wind import compute_relative_wind
+    from ekman import evaluate_ekman_persistence
+    from scoring import (
+        evaluate_chlorophyll_criterion,
+        classify_feature_co_occurrence,
+    )
+    from freshness import calculate_data_age_hours, evaluate_freshness
+    from spatial import (
+        get_bounding_box_for_radius,
+        haversine_distance_nm,
+        calculate_compass_bearing,
+        rank_pfz_candidates,
+    )
 
 STANDARD_PARAMETER_TRACEABILITY = [
     ParameterTraceability(
@@ -83,37 +160,6 @@ STANDARD_PARAMETER_TRACEABILITY = [
     ),
 ]
 
-from .config import (
-    CHL_HIGH_THRESHOLD,
-    COMMON_GRID_RESOLUTION_KM,
-    FRESHNESS_FRESH_MAX_HOURS,
-    FRESHNESS_PERSISTED_MAX_HOURS,
-)
-from .preprocessing import (
-    create_common_grid,
-    resample_to_grid,
-    compute_3day_chlorophyll_composite,
-)
-from .fronts import (
-    detect_sst_fronts,
-    detect_chl_fronts,
-    combine_front_features,
-)
-from .eddies import detect_mesoscale_eddies
-from .relative_wind import compute_relative_wind
-from .ekman import evaluate_ekman_persistence
-from .scoring import (
-    evaluate_chlorophyll_criterion,
-    classify_feature_co_occurrence,
-)
-from .freshness import calculate_data_age_hours, evaluate_freshness
-from .spatial import (
-    get_bounding_box_for_radius,
-    haversine_distance_nm,
-    calculate_compass_bearing,
-    rank_pfz_candidates,
-)
-
 
 class ScientificPfzEngine:
     """
@@ -125,9 +171,19 @@ class ScientificPfzEngine:
         # Local data directory for cached Copernicus NetCDF files
         if data_cache_dir:
             self.data_cache_dir = data_cache_dir
+        elif os.environ.get("DATA_CACHE_DIR"):
+            self.data_cache_dir = os.environ.get("DATA_CACHE_DIR")
         else:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            self.data_cache_dir = os.path.join(base_dir, "scratch", "copernicus_test", "downloads")
+            scratch_path = os.path.join(base_dir, "scratch", "copernicus_test", "downloads")
+            local_data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+            if os.path.exists(scratch_path):
+                self.data_cache_dir = scratch_path
+            elif os.path.exists(local_data_path):
+                self.data_cache_dir = local_data_path
+            else:
+                self.data_cache_dir = scratch_path
+
 
     def load_regional_datasets(
         self,

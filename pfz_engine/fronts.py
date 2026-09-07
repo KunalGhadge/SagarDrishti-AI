@@ -12,7 +12,11 @@ SCIENTIFIC PRINCIPLES:
 from typing import Tuple, Dict, Any
 import numpy as np
 from scipy.ndimage import gaussian_filter, sobel
-from .config import CAYULA_CORNILLON_CONFIG, CANNY_CHL_CONFIG
+try:
+    from .config import CAYULA_CORNILLON_CONFIG, CANNY_CHL_CONFIG
+except (ImportError, ValueError):
+    from config import CAYULA_CORNILLON_CONFIG, CANNY_CHL_CONFIG
+
 
 
 def detect_sst_fronts(

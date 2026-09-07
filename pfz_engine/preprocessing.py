@@ -11,12 +11,21 @@ SCIENTIFIC PRINCIPLES:
 from typing import Tuple, Optional, Dict, Any, List
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
-from .config import (
-    COMMON_GRID_RESOLUTION_KM,
-    COMMON_GRID_INTERPOLATION_METHOD,
-    CHL_COMPOSITE_WINDOW_DAYS,
-    CHL_MIN_VALID_OBSERVATION_RATIO,
-)
+try:
+    from .config import (
+        COMMON_GRID_RESOLUTION_KM,
+        COMMON_GRID_INTERPOLATION_METHOD,
+        CHL_COMPOSITE_WINDOW_DAYS,
+        CHL_MIN_VALID_OBSERVATION_RATIO,
+    )
+except (ImportError, ValueError):
+    from config import (
+        COMMON_GRID_RESOLUTION_KM,
+        COMMON_GRID_INTERPOLATION_METHOD,
+        CHL_COMPOSITE_WINDOW_DAYS,
+        CHL_MIN_VALID_OBSERVATION_RATIO,
+    )
+
 
 
 def create_common_grid(

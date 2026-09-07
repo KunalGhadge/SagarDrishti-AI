@@ -31,7 +31,11 @@ CRITICAL COASTAL DATA RULE:
 from typing import Tuple, Optional, Dict, Any, List
 import numpy as np
 from scipy.ndimage import minimum_filter, maximum_filter
-from .config import EDDY_CONFIG
+try:
+    from .config import EDDY_CONFIG
+except (ImportError, ValueError):
+    from config import EDDY_CONFIG
+
 
 
 def derive_sla_from_ssh(

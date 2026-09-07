@@ -10,9 +10,22 @@ Endpoints:
 import os
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from .models import AnalyzeRequest, AnalyzeResponse
-from .engine import ScientificPfzEngine
-from . import __version__, __engine_id__
+
+try:
+    from .models import AnalyzeRequest, AnalyzeResponse
+    from .engine import ScientificPfzEngine
+    from . import __version__, __engine_id__
+except (ImportError, ValueError):
+    from models import AnalyzeRequest, AnalyzeResponse
+    from engine import ScientificPfzEngine
+    try:
+        from __init__ import __version__, __engine_id__
+    except (ImportError, ValueError):
+        try:
+            from pfz_engine import __version__, __engine_id__
+        except (ImportError, ValueError):
+            __version__ = "2.0.0"
+            __engine_id__ = "pfz-v2"
 
 app = FastAPI(
     title="SagarDrishti AI Scientific PFZ Engine",
@@ -21,13 +34,39 @@ app = FastAPI(
 )
 
 # CORS middleware for Next.js frontend communication
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Configured via FRONTEND_URL or CORS_ORIGINS env vars, with safe local defaults
+default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+frontend_env = os.environ.get("FRONTEND_URL") or os.environ.get("CORS_ORIGINS", "")
+if frontend_env.strip() == "*":
+    # Wildcard origin with credentials disabled per CORS spec
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    allowed_origins = list(default_origins)
+    if frontend_env:
+        for origin in frontend_env.split(","):
+            cleaned = origin.strip().rstrip("/")
+            if cleaned and cleaned not in allowed_origins:
+                allowed_origins.append(cleaned)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 engine = ScientificPfzEngine()
 
@@ -114,3 +153,11 @@ def analyze_pfz(request: AnalyzeRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Scientific PFZ calculation error: {str(e)}"
         )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.environ.get("PORT", 8000))
+    host = os.environ.get("HOST", "0.0.0.0")
+    uvicorn.run("service:app", host=host, port=port, reload=False)
