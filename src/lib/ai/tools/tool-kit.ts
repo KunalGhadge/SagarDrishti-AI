@@ -13,6 +13,7 @@ import { imdWeatherTool } from "./marine/imd-weather-tool";
 import { cycloneTool } from "./marine/cyclone-tool";
 import { marinePhysicsTool } from "./marine/marine-physics-tool";
 import { noaaChlorophyllTool } from "./marine/noaa-chlorophyll-tool";
+import { pfzAnalysisTool } from "./marine/pfz-analysis-tool";
 
 export const APP_DEFAULT_TOOL_KIT: Record<
   AppDefaultToolkit,
@@ -41,6 +42,7 @@ export const APP_DEFAULT_TOOL_KIT: Record<
     [DefaultToolName.CycloneTracking]: cycloneTool,
     [DefaultToolName.MarinePhysics]: marinePhysicsTool,
     [DefaultToolName.NoaaChlorophyll]: noaaChlorophyllTool,
+    [DefaultToolName.PfzAnalysis]: pfzAnalysisTool,
   },
 };
 

@@ -22,6 +22,7 @@ export enum DefaultToolName {
   MarinePhysics = "marinePhysics",
   MaritimeNews = "maritimeNews",
   NoaaChlorophyll = "noaaChlorophyll",
+  PfzAnalysis = "pfzAnalysis",
 }
 
 export const SequentialThinkingToolName = "sequential-thinking";

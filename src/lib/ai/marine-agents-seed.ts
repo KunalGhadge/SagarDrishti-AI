@@ -55,6 +55,12 @@ DIRECT-ANSWER-FIRST PROTOCOL:
       mentions: [
         {
           type: "defaultTool",
+          name: DefaultToolName.PfzAnalysis,
+          label: DefaultToolName.PfzAnalysis,
+          description: "Execute scientific Potential Fishing Zone (PFZ) co-occurrence analysis (Sarangi 2024 & Jishad 2021) on Copernicus NetCDF datasets",
+        },
+        {
+          type: "defaultTool",
           name: DefaultToolName.ImdWeather,
           label: DefaultToolName.ImdWeather,
           description: "Fetch live official IMD coastal bulletins and fishermen warnings",
@@ -143,13 +149,14 @@ DIRECT-ANSWER-FIRST PROTOCOL:
 You evaluate physical oceanography, satellite Sea Surface Temperature (SST), and ocean color based on INCOIS and UNESCO-IOC standards.
 
 DIRECT-ANSWER-FIRST PROTOCOL:
-- When asked for Potential Fishing Zones (PFZ): Report the exact candidate zones and coordinates directly provided by the scientific PFZ engine evidence.
+- When asked for Potential Fishing Zones (PFZ), thermal fronts, upwelling, chlorophyll aggregation, or fishing sector recommendations: ALWAYS invoke the pfzAnalysis tool to run the scientific Ocean Feature Co-occurrence Engine (grounded in Sarangi et al. 2024 & Jishad et al. 2021 on Copernicus NetCDF data).
+- Report the exact candidate zones, bearing, distance in NM, and coordinates directly provided by the pfzAnalysis tool evidence.
 - Never invent or fabricate coordinates, fake confidence percentages (e.g. "87%"), or catch predictions.
 - Structure findings using the Ocean Feature Co-occurrence framework (Sarangi et al. 2024 / Jishad et al. 2021):
   * C: Chlorophyll productivity flag (CHL > 0.1 mg/m³)
   * F: Ocean front presence (Cayula-Cornillon SST thermal front OR Canny chlorophyll front)
   * E: Mesoscale eddy presence (cyclonic upwelling vs anti-cyclonic downwelling; if near coast, state that altimetry is unavailable due to coastal satellite gap rather than claiming no eddy exists)
-- Explicitly report data freshness (FRESH <24h, PERSISTED 24–72h, or INSUFFICIENT EVIDENCE) and persistence status.
+- Explicitly report data freshness (FRESH <24h, PERSISTED 24–72h, or INSUFFICIENT EVIDENCE), persistence status, and 4-dimensional data quality.
 - Distinguish NO_SIGNAL (data was checked, no features met criteria) from INSUFFICIENT_EVIDENCE / UNAVAILABLE (data missing or cloud-masked).
 - REGIONAL SPECIES & FISHERIES KNOWLEDGE PROTOCOL:
   * Real-time satellite sensors do not conduct physical fish censuses. Do NOT fabricate species catches.
@@ -157,6 +164,12 @@ DIRECT-ANSWER-FIRST PROTOCOL:
   * Clearly disclose: "Our available marine datasets do not directly provide species-level catch data for this location, so I researched authoritative fisheries sources to identify species commonly reported in this region."
   * Maintain confident, scientifically honest wording. Never guarantee species presence or catch. Preserve citations.`,
       mentions: [
+        {
+          type: "defaultTool",
+          name: DefaultToolName.PfzAnalysis,
+          label: DefaultToolName.PfzAnalysis,
+          description: "Execute scientific Potential Fishing Zone (PFZ) co-occurrence analysis (Sarangi 2024 & Jishad 2021) on Copernicus NetCDF datasets",
+        },
         {
           type: "defaultTool",
           name: DefaultToolName.MarinePhysics,
