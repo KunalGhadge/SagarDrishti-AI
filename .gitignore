@@ -61,3 +61,7 @@ openai-compatible.config.ts
 certificates
 public/uploads
 scratch/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/

@@ -21,6 +21,27 @@ export interface MapMarker {
   heading?: number | null;
   speed?: number | null;
   accuracy?: number | null;
+  classification?: string;
+  featureCount?: number;
+  features?: {
+    high_chlorophyll?: boolean;
+    sst_front?: boolean;
+    chl_front?: boolean;
+    front_present?: boolean;
+    cyclonic_eddy?: boolean | null;
+    eddy_evidence_status?: string;
+  };
+  dataAgeHours?: number;
+  freshnessStatus?: string;
+  persistenceStatus?: string;
+  evidenceQuality?: {
+    chl_status?: string;
+    sst_status?: string;
+    ssh_sla_status?: string;
+    wind_status?: string;
+    current_status?: string;
+    source_datasets?: Record<string, string>;
+  };
 }
 
 export interface MapPolygon {
@@ -229,7 +250,7 @@ export function MapView(props: MapViewProps) {
           iconAnchor: [16, 16],
         });
 
-        const popupContent = `
+        let popupContent = `
           <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4; color: #1e293b;">
             <div style="font-weight: 700; margin-bottom: 2px;">${m.label}</div>
             <div style="color: #64748b; font-size: 11px;">${m.lat.toFixed(4)}°N, ${m.lon.toFixed(4)}°E</div>
@@ -240,6 +261,62 @@ export function MapView(props: MapViewProps) {
             </div>
           </div>
         `;
+
+        // Rich explainable popup for Potential Fishing Zone candidates
+        if (m.type === "pfz") {
+          const rawCls = m.classification || (m.label.includes("HIGH") ? "HIGH_POSSIBILITY" : m.label.includes("MEDIUM") ? "MEDIUM_POSSIBILITY" : "POTENTIAL_FISHING_ZONE");
+          const clsLabel = rawCls.replace(/_/g, " ");
+          const badgeBg = rawCls.includes("HIGH")
+            ? "#dcfce7; color: #15803d; border: 1px solid #86efac"
+            : rawCls.includes("MEDIUM")
+            ? "#e0f2fe; color: #0369a1; border: 1px solid #7dd3fc"
+            : "#f1f5f9; color: #475569; border: 1px solid #cbd5e1";
+
+          const chlCheck = m.features?.high_chlorophyll != null
+            ? (m.features.high_chlorophyll ? "✓ High Chlorophyll (>0.1 mg/m³)" : "○ Chlorophyll ≤ 0.1 mg/m³")
+            : "✓ Chlorophyll Bio-Optics Active";
+          const frontCheck = m.features?.front_present != null
+            ? (m.features.front_present ? "✓ Ocean Front (SST / CHL)" : "○ No Coherent Front")
+            : "✓ Thermal / Optical Front Gradient";
+          const eddyCheck = m.features?.cyclonic_eddy === true
+            ? "✓ Cyclonic Eddy (Upwelling)"
+            : m.features?.cyclonic_eddy === false
+            ? "○ Anti-cyclonic / Neutral SLA"
+            : "○ Mesoscale Eddy Unavailable (Coastal Altimetry Gap)";
+
+          const freshnessStr = m.freshnessStatus || (m.dataAgeHours != null ? `${m.dataAgeHours}h old` : "Fresh Satellite Observation");
+          const persistStr = m.persistenceStatus ? `Persistence: ${m.persistenceStatus}` : "";
+
+          popupContent = `
+            <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4; color: #1e293b; min-width: 220px;">
+              <div style="font-weight: 700; font-size: 13px; margin-bottom: 2px;">🐟 ${m.label}</div>
+              <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">${m.lat.toFixed(4)}°N, ${m.lon.toFixed(4)}°E</div>
+              <div style="margin-bottom: 6px;">
+                <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: ${badgeBg};">
+                  ${clsLabel}
+                </span>
+              </div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 6px; margin-bottom: 6px; font-size: 11px;">
+                <div style="font-weight: 600; color: #334155; margin-bottom: 2px;">Scientific Evidence (C + F + E):</div>
+                <div style="color: #0f766e;">${chlCheck}</div>
+                <div style="color: #0f766e;">${frontCheck}</div>
+                <div style="color: #475569;">${eddyCheck}</div>
+              </div>
+              <div style="font-size: 10px; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 4px;">
+                <div>Data Age / Freshness: <strong>${freshnessStr}</strong></div>
+                ${persistStr ? `<div>${persistStr}</div>` : ""}
+                ${
+                  m.evidenceQuality
+                    ? `<div style="margin-top: 4px; padding: 3px 6px; background: #f1f5f9; border-radius: 4px; font-size: 9px; color: #475569;">
+                        <strong>Completeness:</strong> SST (${m.evidenceQuality.sst_status || "OK"}), CHL (${m.evidenceQuality.chl_status || "OK"}), SSH (${m.evidenceQuality.ssh_sla_status || "OK"}), Wind (${m.evidenceQuality.wind_status || "OK"})
+                      </div>`
+                    : ""
+                }
+                <div style="color: #94a3b8; margin-top: 2px;">Lineage: Sarangi et al. 2024 / Jishad et al. 2021</div>
+              </div>
+            </div>
+          `;
+        }
 
         const marker = L.marker([m.lat, m.lon], { icon: customIcon }).addTo(map);
         marker.bindPopup(popupContent);

@@ -8,6 +8,7 @@ import { classifyIntent, MarineIntentCategory } from "./intent-classifier";
 import { EvidencePack } from "./evidence-pack";
 import { evaluateImoMarineRisk } from "../engines/risk-engine";
 import { evaluateMarineInsights } from "../engines/insight-engine";
+import { queryPfzV2Service, PfzV2Candidate } from "../engines/pfz-v2-client";
 
 // 1. Fixed Category -> Tool Lookup Object
 export const CATEGORY_TOOL_LOOKUP: Record<
@@ -82,9 +83,6 @@ export interface CoastalZoneAnchor {
   harbor: string;
   latitude: number;
   longitude: number;
-  pfzCoordinates: { latitude: number; longitude: number };
-  pfzDistanceNM: number;
-  pfzBearing: string;
   nearestImblName: string;
   imblDistanceKm: number;
   nearestMpaName: string;
@@ -98,9 +96,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     harbor: "Sassoon Dock, Mumbai",
     latitude: 18.922,
     longitude: 72.8347,
-    pfzCoordinates: { latitude: 18.742, longitude: 72.315 },
-    pfzDistanceNM: 32,
-    pfzBearing: "245° (WSW)",
     nearestImblName: "Indo-Pak IMBL (Sir Creek Sector)",
     imblDistanceKm: 420.0,
     nearestMpaName: "Thane Creek Flamingo Sanctuary",
@@ -112,9 +107,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     harbor: "Veraval Fisheries Harbour, Gujarat",
     latitude: 20.902,
     longitude: 70.37,
-    pfzCoordinates: { latitude: 20.72, longitude: 69.88 },
-    pfzDistanceNM: 28,
-    pfzBearing: "240° (WSW)",
     nearestImblName: "Indo-Pak IMBL (Sir Creek / Kori Creek)",
     imblDistanceKm: 145.0,
     nearestMpaName: "Marine National Park (Gulf of Kutch)",
@@ -126,9 +118,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     harbor: "Mirkarwada Fishing Harbour, Ratnagiri",
     latitude: 16.9902,
     longitude: 73.312,
-    pfzCoordinates: { latitude: 16.85, longitude: 72.95 },
-    pfzDistanceNM: 22,
-    pfzBearing: "230° (SW)",
     nearestImblName: "Indo-Pak IMBL",
     imblDistanceKm: 650.0,
     nearestMpaName: "Malvan Marine Sanctuary",
@@ -140,9 +129,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     harbor: "Mormugao Fishing Harbour, Goa",
     latitude: 15.4167,
     longitude: 73.805,
-    pfzCoordinates: { latitude: 15.28, longitude: 73.45 },
-    pfzDistanceNM: 24,
-    pfzBearing: "245° (WSW)",
     nearestImblName: "Indo-Pak IMBL",
     imblDistanceKm: 780.0,
     nearestMpaName: "Netravali Marine Estuarine Sanctuary",
@@ -154,9 +140,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     harbor: "Cochin Fisheries Harbour, Thoppumpady",
     latitude: 9.9312,
     longitude: 76.2673,
-    pfzCoordinates: { latitude: 9.75, longitude: 75.82 },
-    pfzDistanceNM: 29,
-    pfzBearing: "245° (WSW)",
     nearestImblName: "Indo-Sri Lanka IMBL (Gulf of Mannar)",
     imblDistanceKm: 220.0,
     nearestMpaName: "Vembanad Marine Protected Wetland",
@@ -168,9 +151,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     harbor: "Kasimedu Fisheries Harbour, Chennai",
     latitude: 13.0827,
     longitude: 80.2707,
-    pfzCoordinates: { latitude: 13.22, longitude: 80.68 },
-    pfzDistanceNM: 25,
-    pfzBearing: "065° (ENE)",
     nearestImblName: "Indo-Sri Lanka IMBL (Palk Strait)",
     imblDistanceKm: 290.0,
     nearestMpaName: "Pulicat Lake Bird Sanctuary Waters",
@@ -182,9 +162,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     harbor: "Rameswaram Fishing Jetty, Tamil Nadu",
     latitude: 9.2876,
     longitude: 79.3129,
-    pfzCoordinates: { latitude: 9.15, longitude: 79.55 },
-    pfzDistanceNM: 18,
-    pfzBearing: "125° (SE)",
     nearestImblName: "Indo-Sri Lanka IMBL (Katchatheevu Corridor)",
     imblDistanceKm: 14.2,
     nearestMpaName: "Gulf of Mannar Marine National Park",
@@ -196,9 +173,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     harbor: "Visakhapatnam Fishing Harbour",
     latitude: 17.6868,
     longitude: 83.2185,
-    pfzCoordinates: { latitude: 17.52, longitude: 83.65 },
-    pfzDistanceNM: 27,
-    pfzBearing: "115° (ESE)",
     nearestImblName: "Indo-Bangladesh IMBL",
     imblDistanceKm: 510.0,
     nearestMpaName: "Coringa Wildlife Sanctuary Waters",
@@ -210,9 +184,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     harbor: "Paradip Fishing Harbour, Odisha",
     latitude: 20.316,
     longitude: 86.611,
-    pfzCoordinates: { latitude: 20.12, longitude: 86.95 },
-    pfzDistanceNM: 23,
-    pfzBearing: "120° (ESE)",
     nearestImblName: "Indo-Bangladesh IMBL",
     imblDistanceKm: 180.0,
     nearestMpaName: "Gahirmatha Marine Sanctuary (Olive Ridley Nesting)",
@@ -224,9 +195,6 @@ export const INDIAN_COASTAL_ANCHORS: Record<string, CoastalZoneAnchor> = {
     harbor: "Jakhau Fishery Port, Kutch",
     latitude: 23.237,
     longitude: 68.618,
-    pfzCoordinates: { latitude: 23.10, longitude: 68.25 },
-    pfzDistanceNM: 24,
-    pfzBearing: "245° (WSW)",
     nearestImblName: "Indo-Pak IMBL (Sir Creek Sector)",
     imblDistanceKm: 28.5,
     nearestMpaName: "Marine National Park (Gulf of Kutch)",
@@ -493,6 +461,31 @@ You MUST output EXACTLY this clarification question and nothing else:
     waveSteepness = parseFloat((telemetry.waveHeight / Math.max(waveLength, 1)).toFixed(4));
   }
 
+  // 3. Query Scientific PFZ V2 Engine if feature flag is active
+  let pfzV2Candidate: PfzV2Candidate | null = null;
+  let allPfzV2Candidates: PfzV2Candidate[] = [];
+  if (process.env.PFZ_ENGINE_V2 === "true") {
+    try {
+      const windSpeedMs = telemetry.windSpeedKmph != null ? telemetry.windSpeedKmph / 3.6 : null;
+      const windDirectionDeg = telemetry.windDirection ?? null;
+      const pfzRes = await queryPfzV2Service({
+        latitude: lat,
+        longitude: lon,
+        radiusKm: 80,
+        referencePortName: anchor.name,
+        windSpeedMs,
+        windDirectionDeg,
+        timeoutMs: 12000,
+      });
+      if (pfzRes.status === "available" && pfzRes.candidates.length > 0) {
+        allPfzV2Candidates = pfzRes.candidates;
+        pfzV2Candidate = pfzRes.candidates[0];
+      }
+    } catch {
+      // Graceful degradation: leave pfzV2Candidate as null
+    }
+  }
+
   // Proactive Geofencing Warning Logic (IMBL < 50 km OR MPA < 20 km)
   const isImblProximity = anchor.imblDistanceKm < 50.0;
   const isMpaProximity = anchor.mpaDistanceKm < 20.0;
@@ -687,22 +680,24 @@ You MUST output EXACTLY this clarification question and nothing else:
         timestamp,
       },
       nearestPfzCoordinates: {
-        value: null,
-        status: "unavailable",
-        source: "Data unavailable (INCOIS PFZ direct advisory feed not connected)",
+        value: pfzV2Candidate ? { latitude: pfzV2Candidate.latitude, longitude: pfzV2Candidate.longitude } : null,
+        status: pfzV2Candidate ? "derived" : "unavailable",
+        source: pfzV2Candidate
+          ? "SagarDrishti Scientific PFZ Engine v2 (Sarangi 2024 / Jishad 2021)"
+          : "Data unavailable (INCOIS PFZ direct advisory feed not connected)",
         timestamp,
       },
       nearestPfzDistanceNM: {
-        value: null,
-        status: "unavailable",
-        source: "Data unavailable",
+        value: pfzV2Candidate ? pfzV2Candidate.distance_nm : null,
+        status: pfzV2Candidate ? "derived" : "unavailable",
+        source: pfzV2Candidate ? "Haversine Great Circle Math to Candidate Cell" : "Data unavailable",
         timestamp,
         unit: "NM",
       },
       nearestPfzBearing: {
-        value: null,
-        status: "unavailable",
-        source: "Data unavailable",
+        value: pfzV2Candidate ? pfzV2Candidate.bearing : null,
+        status: pfzV2Candidate ? "derived" : "unavailable",
+        source: pfzV2Candidate ? "Compass Heading Calculation" : "Data unavailable",
         timestamp,
       },
       insightReasoning: {
@@ -889,11 +884,28 @@ Contact Coast Guard MRCC via official emergency channels — this app is a decis
   }
 
   // Build the strict Evidence-Pack-only grounding prompt for the LLM
+  const pfzV2GroundingBlock = pfzV2Candidate
+    ? `
+<scientific_pfz_v2_candidates>
+Candidate Zone: ${pfzV2Candidate.name}
+Classification: ${pfzV2Candidate.classification} (Features verified: ${pfzV2Candidate.feature_count}/3)
+Distance & Bearing: ${pfzV2Candidate.distance_nm} NM, ${pfzV2Candidate.bearing}
+Coordinates: ${pfzV2Candidate.latitude}°N, ${pfzV2Candidate.longitude}°E
+Features: High Chlorophyll (>0.1 mg/m³): ${pfzV2Candidate.features.high_chlorophyll}, SST Front: ${pfzV2Candidate.features.sst_front}, CHL Front: ${pfzV2Candidate.features.chl_front}, Cyclonic Eddy: ${pfzV2Candidate.features.cyclonic_eddy === null ? "UNKNOWN (coastal satellite altimetry gap)" : pfzV2Candidate.features.cyclonic_eddy}
+Data Freshness: ${pfzV2Candidate.freshness.status} (${pfzV2Candidate.freshness.age_hours}h old)
+Persistence: ${pfzV2Candidate.persistence.status} (${pfzV2Candidate.persistence.classification})
+Scientific Explanation: ${pfzV2Candidate.explanation.join("; ")}
+Other candidate zones nearby:
+${allPfzV2Candidates.slice(1, 4).map((c, idx) => `  ${idx + 2}. ${c.name} — ${c.distance_nm} NM ${c.bearing} (${c.classification})`).join("\n")}
+</scientific_pfz_v2_candidates>
+`
+    : "";
+
   const groundedPromptContext = `
 <verified_evidence_pack>
 ${JSON.stringify(evidencePack, null, 2)}
 </verified_evidence_pack>
-
+${pfzV2GroundingBlock}
 CRITICAL RULES FOR GENERATING YOUR RESPONSE:
 1. You MUST read ONLY from the <verified_evidence_pack> above.
 2. If a field status is "simulated", you may mention it but append "(simulated baseline)".

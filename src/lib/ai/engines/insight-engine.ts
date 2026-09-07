@@ -301,13 +301,13 @@ export function evaluateMarineInsights(obs: OceanographicObservation): MarineIns
   if (sst == null && chloro == null) {
     reasoning = "insufficient evidence for a reliable pattern: SST and Chlorophyll telemetry unavailable for this zone.";
   } else if (pfzLikelihood === "HIGH_HOTSPOT" && sst != null && chloro != null) {
-    reasoning = `SST ${sst.toFixed(1)}°C with ΔSST ${sstGradientDegPer5Km?.toFixed(2)}°C/5km (exceeds INCOIS 0.50°C/5km front threshold) coupled with Chlorophyll-a ${chloro.toFixed(2)} mg/m³ (in 0.20-2.00 mg/m³ optimal range) confirms localized nutrient upwelling and pelagic fish aggregation.`;
+    reasoning = `SST ${sst.toFixed(1)}°C with ΔSST ${sstGradientDegPer5Km?.toFixed(2)}°C/5km (exceeds INCOIS 0.50°C/5km front threshold) coupled with Chlorophyll-a ${chloro.toFixed(2)} mg/m³ (in 0.20-2.00 mg/m³ optimal range) indicates localized nutrient upwelling favorable for pelagic aggregation.`;
   } else if (pfzLikelihood === "MODERATE_MARGINAL" && sst != null) {
     const gradStr = sstGradientDegPer5Km != null ? `ΔSST ${sstGradientDegPer5Km.toFixed(2)}°C/5km` : "weak gradient";
-    reasoning = `SST ${sst.toFixed(1)}°C with ${gradStr} and Chlorophyll-a ${chloro != null ? `${chloro.toFixed(2)} mg/m³` : "baseline"} indicates moderate dispersed biological productivity without sharp frontal boundaries.`;
+    reasoning = `SST ${sst.toFixed(1)}°C with ${gradStr} and Chlorophyll-a ${chloro != null ? `${chloro.toFixed(2)} mg/m³` : "baseline"} indicates moderate dispersed primary productivity without sharp frontal boundaries.`;
   } else if (sst != null) {
     const gradStr = sstGradientDegPer5Km != null ? `${sstGradientDegPer5Km.toFixed(2)}°C/5km` : "0.20°C/5km";
-    reasoning = `Measured ΔSST is ${gradStr} (below INCOIS 0.50°C/5km significance threshold), confirming homogeneous surface waters where fish aggregations are naturally dispersed.`;
+    reasoning = `Measured ΔSST is ${gradStr} (below INCOIS 0.50°C/5km significance threshold), indicating homogeneous surface waters without localized frontal concentration cues.`;
   } else {
     reasoning = "insufficient evidence for a reliable pattern: required oceanographic boundary metrics not satisfied.";
   }
@@ -321,8 +321,9 @@ export function evaluateMarineInsights(obs: OceanographicObservation): MarineIns
     : "Standard non-convergent pelagic conditions without pronounced frontal nutrient concentration.";
 
   const operationalInference = pfzLikelihood === "HIGH_HOTSPOT"
-    ? "High probability Potential Fishing Zone (PFZ) within 5–10 nautical miles along the thermal front gradient."
-    : "Moderate dispersed fish presence; pelagic schooling is not concentrated in sharp frontal lines.";
+    ? "Favorable oceanographic suitability for pelagic aggregation within 5–10 nautical miles along the thermal front gradient."
+    : "Dispersed oceanographic background conditions; environmental indicators do not indicate sharp frontal convergence.";
+
 
   return {
     engine: "INCOIS_PFZ_PHYSICAL_BIOLOGICAL_COUPLING_ENGINE",
