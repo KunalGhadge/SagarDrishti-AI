@@ -5,6 +5,10 @@ import { customModelProvider } from "../models";
 import { safeParseToolArguments } from "../tool-repair";
 import { generateWithProvider } from "../central-model-router";
 import { resolveNearbyVerifiedPorts } from "../engines/marine-geospatial-engine";
+import {
+  SAGARDRISHTI_PRESEEDED_AGENTS,
+  SLUG_TO_UUID_MAP,
+} from "../marine-agents-seed";
 
 export interface SpecialistExecutionInput {
   agent: Agent | AgentSummary | any;
@@ -46,7 +50,13 @@ export async function executeSpecialistAgentLoop(
 ): Promise<SpecialistExecutionResult> {
   const startTime = Date.now();
   const { agent, task, context, maxSteps = 5 } = input;
-  const agentInstructions = (agent as Agent).instructions;
+
+  // Sync with canonical preseeded system definitions if this is a preseeded agent
+  const canonical = SAGARDRISHTI_PRESEEDED_AGENTS.find(
+    (seed) => seed.id === agent.id || SLUG_TO_UUID_MAP[seed.id] === agent.id
+  );
+
+  const agentInstructions = canonical?.instructions || (agent as Agent).instructions;
   const agentRole = agentInstructions?.role || agent.name;
   const systemPrompt =
     agentInstructions?.systemPrompt ||
@@ -54,7 +64,7 @@ export async function executeSpecialistAgentLoop(
 Your mandate is to analyze marine, meteorological, oceanographic, and geospatial data with zero fabrication.
 Always base conclusions strictly on real tool outputs. If a data source is unavailable, explicitly state that it is unavailable.`;
 
-  // 1. Dynamically resolve tools assigned to this agent in PostgreSQL
+  // 1. Dynamically resolve tools assigned to this agent (with latest canonical fallback)
   const { mountedTools, mountedToolNames, unmountedConfiguredTools } =
     resolveToolsForAgent(agentInstructions?.mentions);
 

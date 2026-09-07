@@ -4,7 +4,10 @@ import { JSONSchema7 } from "json-schema";
 import { jsonSchemaToZod } from "lib/json-schema-to-zod";
 import { safe } from "ts-safe";
 import { Agent, AgentSummary } from "app-types/agent";
-import { SAGARDRISHTI_PRESEEDED_AGENTS } from "lib/ai/marine-agents-seed";
+import {
+  SAGARDRISHTI_PRESEEDED_AGENTS,
+  SLUG_TO_UUID_MAP,
+} from "lib/ai/marine-agents-seed";
 import { executeSpecialistAgentLoop, SpecialistExecutionResult } from "../specialist/specialist-executor";
 import { runOrchestratedWorkflow } from "../orchestrator";
 
@@ -20,11 +23,11 @@ export const agentDelegationSchema: JSONSchema7 = {
   properties: {
     query: {
       type: "string",
-      description: "The specific sub-task or question delegated to this specialist agent",
+      description: "Direct specific instruction for the specialist agent to execute",
     },
     location: {
       type: "string",
-      description: "Coastal location or port of interest (e.g. 'Ratnagiri', 'Mumbai', 'Chennai')",
+      description: "Target maritime harbor, port, or coastal zone",
     },
     coordinates: {
       type: "object",
@@ -32,12 +35,12 @@ export const agentDelegationSchema: JSONSchema7 = {
         latitude: { type: "number" },
         longitude: { type: "number" },
       },
-      description: "Geographic coordinates of vessel or ocean area",
+      required: ["latitude", "longitude"],
+      description: "Precise latitude and longitude of the operation sector",
     },
     specificParameters: {
       type: "object",
-      description: "Optional specific parameters relevant to the specialist domain",
-      additionalProperties: true,
+      description: "Specialized context parameters",
     },
   },
   required: ["query"],
@@ -51,31 +54,48 @@ export function createMarineSupervisorTools(
 ): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
 
-  // 1. Live Device GPS Location Tool
-  tools["get_device_gps_location"] = createTool({
-    description: "Retrieves the user's real-time live GPS device coordinates from the browser geolocation sensor.",
+  // 1. Device Location Tool
+  tools["get_device_live_location"] = createTool({
+    description:
+      "Retrieves the live GPS coordinates (latitude, longitude, coastal harbor) from the user's connected vessel or client device.",
     inputSchema: z.object({}),
     execute: async () => {
       if (userLocation) {
         return {
-          status: "success",
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
-          source: "Live Browser Geolocation API (Permission Granted)",
+          status: "connected",
           isLive: true,
         };
       }
       return {
-        status: "prompt_required",
+        latitude: null,
+        longitude: null,
+        status: "disconnected",
         message: "Device GPS coordinates not yet shared. Please grant browser location access or provide nearest port.",
         isLive: false,
       };
     },
   });
 
-  // 2. Resolve dynamic agent list (from database passed agents or preseeded fallback)
+  // 2. Resolve dynamic agent list (always ensuring canonical codebase instructions & tools for system agents)
   const agentList = (configuredAgents && configuredAgents.length > 0)
-    ? configuredAgents
+    ? configuredAgents.map((a) => {
+        const canonical = SAGARDRISHTI_PRESEEDED_AGENTS.find(
+          (seed) => seed.id === a.id || SLUG_TO_UUID_MAP[seed.id] === a.id
+        );
+        if (canonical && canonical.instructions) {
+          return {
+            ...a,
+            instructions: {
+              ...(a as Agent).instructions,
+              systemPrompt: canonical.instructions.systemPrompt,
+              mentions: canonical.instructions.mentions,
+            },
+          };
+        }
+        return a;
+      })
     : SAGARDRISHTI_PRESEEDED_AGENTS;
 
   // 3. Master Multi-Agent Planner & Orchestrator Tool
@@ -162,3 +182,5 @@ export function createMarineSupervisorTools(
 
   return tools;
 }
+
+export const buildSupervisorTools = createMarineSupervisorTools;
