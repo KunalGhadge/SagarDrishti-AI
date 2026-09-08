@@ -8,11 +8,11 @@ export const noaaChlorophyllQuerySchema: JSONSchema7 = {
   properties: {
     latitude: {
       type: "number",
-      description: "Latitude coordinate of coastal or marine point (e.g. 19.0173 for Mumbai)",
+      description: "Latitude coordinate of coastal or marine point (e.g. 18.9220 for Mumbai)",
     },
     longitude: {
       type: "number",
-      description: "Longitude coordinate of coastal or marine point (e.g. 72.8121 for Mumbai)",
+      description: "Longitude coordinate of coastal or marine point (e.g. 72.8346 for Mumbai Harbor, 72.4000 for Offshore)",
     },
   },
   required: ["latitude", "longitude"],
