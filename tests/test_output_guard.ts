@@ -124,6 +124,16 @@ console.log("=== RUNNING OUTPUT GUARD DETERMINISTIC TEST SUITE ===");
   console.log("✅ Test 12 Passed: No fake percentage catch likelihoods survive output guard");
 }
 
+// Test 13: Redundant Map View placeholder text is stripped cleanly
+{
+  const input = "Here is the oceanographic PFZ analysis.\n\n### 🗺️ Map View\n(Interactive map provided in the adjacent card)\n\n### Conclusion\nOptimal zone located.";
+  const { sanitized } = sanitizeTextContent(input);
+  assert(!sanitized.includes("Map View"), "Failed Test 13.1: Map View text header not stripped");
+  assert(!sanitized.includes("Interactive map provided in the adjacent card"), "Failed Test 13.2: Map placeholder text not stripped");
+  assert(sanitized.includes("Optimal zone located"), "Failed Test 13.3: Other content damaged");
+  console.log("✅ Test 13 Passed: Redundant Map View placeholder text stripped cleanly");
+}
+
 console.log("\n=======================================================");
-console.log("🎉 ALL 12 OUTPUT GUARD TESTS PASSED SUCCESSFULLY!");
+console.log("🎉 ALL 13 OUTPUT GUARD TESTS PASSED SUCCESSFULLY!");
 console.log("=======================================================\n");

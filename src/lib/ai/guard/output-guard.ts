@@ -192,6 +192,15 @@ export function sanitizeTextContent(text: string, context?: OutputGuardContext):
     }
   }
 
+  // =========================================================================
+  // 4. STRIP REDUNDANT MAP VIEW PLACEHOLDER TEXT
+  // Remove dangling "### 🗺️ Map View\n(Interactive map provided...)" artifacts
+  // =========================================================================
+  result = result
+    .replace(/(?:###\s*)?🗺️\s*(?:\*\*)?Map View(?:\*\*)?:?\s*\n*\s*(?:\([^\)]*interactive map[^\)]*\)|\*[^\*]*interactive map[^\*]*\*)/gi, "")
+    .replace(/(?:###\s*)?🗺️\s*(?:\*\*)?Map View(?:\*\*)?:?\s*\(Interactive map provided in the adjacent card\)/gi, "")
+    .replace(/\n{3,}/g, "\n\n");
+
   return { sanitized: result, violations };
 }
 
