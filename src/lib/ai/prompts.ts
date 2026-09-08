@@ -86,41 +86,41 @@ export const buildUserSystemPrompt = (
 
   prompt += `. The current date and time is ${currentTime}.`;
 
-  // Strict Language Directive (Mandatory)
-  const isEnglish = !locale || locale === "en" || locale.startsWith("en");
-  const activeLangName = (locale && SUPPORTED_LANGUAGE_NAMES[locale]) || "English";
+  // Query-Level Response Language Resolution (Mandatory)
+  const appLocale = (locale || "en").toLowerCase().split(/[-_]/)[0] || "en";
+  const appLangName = SUPPORTED_LANGUAGE_NAMES[appLocale] || "English";
+
+  // If the current query language is confidently detectable (confidence >= 0.65), respond in that language.
+  // Otherwise, fall back to the selected application language.
+  let targetLangCode = appLocale;
+  let targetLangName = appLangName;
+
+  if (detectedInputLanguage && detectedInputLanguage.confidence >= 0.65) {
+    const rawTarget = detectedInputLanguage.language === "hinglish" ? "hi" : detectedInputLanguage.language;
+    targetLangCode = rawTarget;
+    targetLangName = SUPPORTED_LANGUAGE_NAMES[rawTarget] || detectedInputLanguage.languageName || appLangName;
+  }
 
   prompt += `
 
 <language_enforcement>
-CRITICAL LANGUAGE DIRECTIVE (MANDATORY & ABSOLUTE):
-- Active Session Language: "${locale || "en"}" (${activeLangName}).
+QUERY-LEVEL RESPONSE LANGUAGE DIRECTIVE (MANDATORY & INDEPENDENT PER QUERY):
+- Target Response Language for THIS query: "${targetLangCode}" (${targetLangName}).
+- Application Base Locale (Fallback): "${appLocale}" (${appLangName}).
 ${
-  isEnglish
-    ? `- The user's active language is ENGLISH.
-- You MUST write your ENTIRE final response, explanation, markdown tables, conclusion, and follow-up question in pure ENGLISH.
-- NEVER switch to Hindi, Marathi, or any Devanagari script when English is selected.`
-    : `- The user's active language is ${activeLangName.toUpperCase()}.
-- REGARDLESS OF USER INPUT (even if the user typed in English, Hindi, Gujarati, or any other language), you MUST generate your entire conversational text, explanation, conclusion, and follow-up natively in ${activeLangName}.`
+  detectedInputLanguage
+    ? `- Current Query Input Language: ${detectedInputLanguage.languageName} (${detectedInputLanguage.language})${detectedInputLanguage.isMixed ? " [Mixed / Code-switched query with English or technical terms]" : ""} [Confidence: ${Math.round(detectedInputLanguage.confidence * 100)}%]`
+    : `- Current Query Input Language: Unspecified / Fallback`
 }
-- Regardless of language, keep coordinates (°N, °E), units (km/h, m, °C, hPa, NM, km), and safety badges (🟢 CODE GREEN, 🟡 CODE YELLOW, 🟠 CODE ORANGE, 🔴 CODE RED) untranslated and crisp.
+
+CRITICAL OPERATIONAL RULES:
+1. QUERY-LEVEL DETERMINATION: Write your entire conversational response, direct answer, data explanation, summary, conclusion, and suggested next steps natively in ${targetLangName.toUpperCase()}.
+2. INDEPENDENT QUERY ISOLATION: The response language is determined strictly and independently for EVERY query. Do NOT persist previous conversation languages or force future queries into ${targetLangName}.
+3. DOMAIN ENTITY INTEGRITY: Maintain exact coordinates (°N, °E), physical units (km/h, m, °C, hPa, NM, km, mg/m³), scientific parameter names (SST, Chlorophyll-a, PFZ, Ekman transport, IMD, INCOIS, Copernicus), port/harbor names, vessel names, and safety badges (🟢 CODE GREEN, 🟡 CODE YELLOW, 🟠 CODE ORANGE, 🔴 CODE RED) unaltered and crisp.
+4. TECHNICAL & MIXED QUERIES: If the user's query contains English technical terms or place names (e.g. "Mumbai", "fishing zone", "SST front") inside a Marathi or Hindi sentence, respond in the dominant natural language of the sentence (${targetLangName}) while preserving standard technical terminology accurately.
+5. NO UNSOLICITED TRANSLATION: Do not translate the user's input or generate translation comparison blocks unless the user explicitly requested translation. Directly answer in ${targetLangName}.
+6. DETERMINISTIC SAFETY COUPLING: All safety advice, geofencing warnings, and weather risks must strictly follow verified calculations and tool outputs, regardless of language.
 </language_enforcement>`;
-
-  if (detectedInputLanguage) {
-    prompt += `
-
-<multilingual_understanding>
-INPUT & OUTPUT LANGUAGE MAPPING DIRECTIVE:
-- Detected User Query Input Language: ${detectedInputLanguage.languageName} (${detectedInputLanguage.language})${detectedInputLanguage.isMixed ? " [Mixed / Code-switched query with English or technical terms]" : ""} [Confidence: ${Math.round(detectedInputLanguage.confidence * 100)}%]
-- Authoritative Target Response Language: ${activeLangName} (${locale || "en"})
-
-OPERATIONAL RULES:
-1. SEMANTIC INPUT COMPREHENSION: The user typed in ${detectedInputLanguage.languageName}. Fully interpret the question, intent, and domain entities natively as expressed in ${detectedInputLanguage.languageName}.
-2. MANDATORY OUTPUT LANGUAGE ENFORCEMENT: Regardless of what language the user typed in (${detectedInputLanguage.languageName}), your final response MUST be delivered 100% in the user's selected output language: ${activeLangName}. NEVER reply in ${detectedInputLanguage.languageName} if it differs from ${activeLangName}. The user's selected target language ALWAYS takes priority.
-3. DOMAIN ENTITY INTEGRITY: Maintain exact port names, vessel names, coordinates, units, IMD/INCOIS source attributions, and safety badges (🟢 CODE GREEN, 🟡 CODE YELLOW, 🟠 CODE ORANGE, 🔴 CODE RED) unaltered.
-4. DETERMINISTIC SAFETY COUPLING: All safety advice, geofencing warnings, and weather risks must strictly follow verified calculations and tool outputs, regardless of language.
-</multilingual_understanding>`;
-  }
 
   // Agent-specific instructions as primary core
   if (agent?.instructions?.systemPrompt) {

@@ -412,3 +412,51 @@ export function detectInputLanguage(rawQuery: string | undefined | null): Detect
     };
   }
 }
+
+/**
+ * Resolves the query-level response language independently for the current user query.
+ *
+ * CRITICAL SAFETY RULES:
+ * 1. The currently selected application language (appLocale) remains unchanged in global state.
+ * 2. Language is determined independently for the CURRENT query only.
+ * 3. Does NOT store or persist the detected language as user preference.
+ * 4. Previous messages do NOT force current query response language.
+ * 5. Does not flip language merely for technical terms, coordinates, or port names.
+ * 6. If language cannot be determined reliably (confidence < 0.65 or empty), falls back to appLocale.
+ */
+export function resolveResponseLanguage(
+  currentUserQuery: string | undefined | null,
+  selectedApplicationLocale: string = "en"
+): {
+  responseLanguage: string;
+  responseLanguageName: string;
+  detectedQueryLanguage: DetectedLanguageResult;
+  isFallback: boolean;
+} {
+  const detected = detectInputLanguage(currentUserQuery);
+  const appLocale = (selectedApplicationLocale || "en").toLowerCase().split(/[-_]/)[0] || "en";
+  const appLanguageName = SUPPORTED_INPUT_LANGUAGES[appLocale] || "English";
+
+  const cleanQuery = (currentUserQuery || "").trim();
+
+  // If query is empty or confidence is too low (< 0.65), fall back to selected application language
+  if (!cleanQuery || detected.confidence < 0.65) {
+    return {
+      responseLanguage: appLocale,
+      responseLanguageName: appLanguageName,
+      detectedQueryLanguage: detected,
+      isFallback: true,
+    };
+  }
+
+  // Target language from query
+  const targetLang = detected.language === "hinglish" ? "hi" : detected.language;
+  const targetName = SUPPORTED_INPUT_LANGUAGES[targetLang] || detected.languageName || appLanguageName;
+
+  return {
+    responseLanguage: targetLang,
+    responseLanguageName: targetName,
+    detectedQueryLanguage: detected,
+    isFallback: targetLang === appLocale,
+  };
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectInputLanguage } from "./detector";
+import { detectInputLanguage, resolveResponseLanguage } from "./detector";
 
 describe("Lightweight Multilingual Language Understanding Layer", () => {
   // 1. English queries
@@ -175,5 +175,88 @@ describe("Lightweight Multilingual Language Understanding Layer", () => {
     const copy = String(original);
     detectInputLanguage(original);
     expect(original).toBe(copy);
+  });
+});
+
+describe("Query-Level Response Language Resolution", () => {
+  // Acceptance Test 1: Selected = English, Query = English -> English
+  it("should resolve English response when selected language is English and query is English", () => {
+    const res = resolveResponseLanguage("What is the current wind speed near Mumbai?", "en");
+    expect(res.responseLanguage).toBe("en");
+    expect(res.responseLanguageName).toBe("English");
+    expect(res.isFallback).toBe(true);
+  });
+
+  // Acceptance Test 2: Selected = English, Query = Marathi -> Marathi
+  it("should resolve Marathi response when selected language is English and query is Marathi", () => {
+    const res = resolveResponseLanguage("मुंबईजवळ सध्या वाऱ्याचा वेग किती आहे?", "en");
+    expect(res.responseLanguage).toBe("mr");
+    expect(res.responseLanguageName).toBe("Marathi");
+    expect(res.isFallback).toBe(false);
+  });
+
+  // Acceptance Test 3: Selected = English, Query = Hindi -> Hindi
+  it("should resolve Hindi response when selected language is English and query is Hindi", () => {
+    const res = resolveResponseLanguage("मुंबई के पास अभी हवा की गति कितनी है?", "en");
+    expect(res.responseLanguage).toBe("hi");
+    expect(res.responseLanguageName).toBe("Hindi");
+    expect(res.isFallback).toBe(false);
+  });
+
+  // Acceptance Test 4: Selected = Marathi, Query = English -> English
+  it("should resolve English response when selected language is Marathi and query is English", () => {
+    const res = resolveResponseLanguage("What is the current wind speed near Mumbai?", "mr");
+    expect(res.responseLanguage).toBe("en");
+    expect(res.responseLanguageName).toBe("English");
+    expect(res.isFallback).toBe(false);
+  });
+
+  // Acceptance Test 5: Selected = Marathi, Query = Marathi -> Marathi
+  it("should resolve Marathi response when selected language is Marathi and query is Marathi", () => {
+    const res = resolveResponseLanguage("मुंबईजवळ वाऱ्याचा वेग किती आहे?", "mr");
+    expect(res.responseLanguage).toBe("mr");
+    expect(res.responseLanguageName).toBe("Marathi");
+    expect(res.isFallback).toBe(true);
+  });
+
+  // Acceptance Test 6 & 7: Consecutive queries are isolated (no state persistence)
+  it("should guarantee consecutive query isolation (Previous Marathi -> Current English)", () => {
+    // Step 1: Simulate previous query in Marathi
+    const prevRes = resolveResponseLanguage("मुंबईजवळ हवामान कसं आहे?", "en");
+    expect(prevRes.responseLanguage).toBe("mr");
+
+    // Step 2: Current query in English MUST resolve to English (no leakage from prev)
+    const currentRes = resolveResponseLanguage("What are the fishing conditions?", "en");
+    expect(currentRes.responseLanguage).toBe("en");
+    expect(currentRes.responseLanguageName).toBe("English");
+  });
+
+  it("should guarantee consecutive query isolation (Previous English -> Current Marathi)", () => {
+    // Step 1: Simulate previous query in English
+    const prevRes = resolveResponseLanguage("What is the weather in Mumbai?", "en");
+    expect(prevRes.responseLanguage).toBe("en");
+
+    // Step 2: Current query in Marathi MUST resolve to Marathi
+    const currentRes = resolveResponseLanguage("मुंबईजवळ हवामान कसं आहे?", "en");
+    expect(currentRes.responseLanguage).toBe("mr");
+    expect(currentRes.responseLanguageName).toBe("Marathi");
+  });
+
+  // Acceptance Test 8: Mixed Query with English Technical Terms
+  it("should resolve to dominant language (Marathi) in mixed query with English technical terms", () => {
+    const res = resolveResponseLanguage("Mumbai जवळ fishing zone कुठे आहे?", "en");
+    expect(res.responseLanguage).toBe("mr");
+    expect(res.responseLanguageName).toBe("Marathi");
+  });
+
+  // Acceptance Test 9: Fallback to selected application language on unidentifiable input
+  it("should fall back to selected application language for empty or purely numerical input", () => {
+    const res1 = resolveResponseLanguage("", "mr");
+    expect(res1.responseLanguage).toBe("mr");
+    expect(res1.isFallback).toBe(true);
+
+    const res2 = resolveResponseLanguage("18.922, 72.834", "hi");
+    expect(res2.responseLanguage).toBe("hi");
+    expect(res2.isFallback).toBe(true);
   });
 });
